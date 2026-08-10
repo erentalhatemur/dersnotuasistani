@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Ders Notu Asistanı - Test Arayüzü</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  #dropzone { border: 2px dashed #999; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; }
+  #dropzone.drag { background: #f0f4ff; border-color: #4a6ee0; }
+  #status { margin-top: 20px; font-weight: 600; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .quiz-option { display: block; margin: 4px 0; padding: 8px; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; }
+  .quiz-option.correct { background: #d4edda; }
+  .quiz-option.wrong { background: #f8d7da; }
+  pre { white-space: pre-wrap; }
+  button { background: #4a6ee0; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+</style>
+</head>
+<body>
+  <h1>📚 Ders Notu Asistanı — Test Arayüzü</h1>
+  <p>Backend'in <code>http://localhost:8000</code> adresinde çalıştığından emin ol.</p>
+
+  <div id="dropzone">
+    <p>Dosyayı buraya sürükle veya seç (PDF, DOCX, PPTX, JPG, PNG)</p>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png,.webp" style="display:none">
+    <button onclick="document.getElementById('fileInput').click()">Dosya Seç</button>
+  </div>
+
+  <div id="status"></div>
+  <div id="results"></div>
+
+<script>
+const API_BASE = "http://localhost:8000";
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+const statusEl = document.getElementById("status");
+const resultsEl = document.getElementById("results");
+
+["dragover", "dragleave", "drop"].forEach(evt => {
+  dropzone.addEventListener(evt, e => {
+    e.preventDefault();
+    dropzone.classList.toggle("drag", evt === "dragover");
+    if (evt === "drop") uploadFile(e.dataTransfer.files[0]);
+  });
+});
+fileInput.addEventListener("change", e => uploadFile(e.target.files[0]));
+
+async function uploadFile(file) {
+  if (!file) return;
+  resultsEl.innerHTML = "";
+  statusEl.textContent = "Yükleniyor...";
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/upload`, { method: "POST", body: formData });
+    if (!res.ok) throw new Error((await res.json()).detail || "Yükleme hatası");
+    const job = await res.json();
+    statusEl.textContent = "İşleniyor... (özet + flashcard + quiz üretiliyor)";
+    pollStatus(job.job_id);
+  } catch (err) {
+    statusEl.textContent = "Hata: " + err.message;
+  }
+}
+
+async function pollStatus(jobId) {
+  const res = await fetch(`${API_BASE}/api/status/${jobId}`);
+  const job = await res.json();
+
+  if (job.status === "processing") {
+    setTimeout(() => pollStatus(jobId), 2000);
+  } else if (job.status === "done") {
+    statusEl.textContent = "✅ Tamamlandı!";
+    renderResult(job.result);
+  } else {
+    statusEl.textContent = "❌ Hata: " + job.error_message;
+  }
+}
+
+function renderResult(result) {
+  let html = `<h2>Özet</h2><div class="card"><pre>${escapeHtml(result.ozet_markdown)}</pre></div>`;
+
+  html += `<h2>Flashcard'lar (${result.flashcards.length})</h2>`;
+  result.flashcards.forEach(fc => {
+    html += `<div class="card"><b>Soru:</b> ${escapeHtml(fc.soru)}<br><b>Cevap:</b> ${escapeHtml(fc.cevap)}</div>`;
+  });
+
+  html += `<h2>Quiz (${result.quiz.length})</h2>`;
+  result.quiz.forEach((q, qi) => {
+    html += `<div class="card"><p><b>${qi + 1}. ${escapeHtml(q.soru)}</b></p>`;
+    q.secenekler.forEach((opt, oi) => {
+      const isCorrect = oi === q.dogru_cevap_index;
+      html += `<div class="quiz-option" onclick="this.classList.add(${isCorrect ? "'correct'" : "'wrong'"})">${escapeHtml(opt)}</div>`;
+    });
+    if (q.aciklama) html += `<p style="color:#666;font-size:0.9em">💡 ${escapeHtml(q.aciklama)}</p>`;
+    html += `</div>`;
+  });
+
+  resultsEl.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
