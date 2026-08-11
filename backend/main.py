@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-from routers import documents  # noqa: E402  (load_dotenv'den sonra import edilmeli)
+from backend.routers import documents # noqa: E402  (load_dotenv'den sonra import edilmeli)
 
 app = FastAPI(title="Ders Notu Asistanı API")
 
