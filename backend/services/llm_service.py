@@ -68,7 +68,7 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
         save_study_session(
             file_name=file_name,
             ai_score=result.ogreticilik_degerlendirmesi.skor,
-            summary=result.ozet
+            summary=result.ozet_markdown
         )
         logger.info("Çalışma oturumu başarıyla Supabase veritabanına kaydedildi.")
 
