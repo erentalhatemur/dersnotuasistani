@@ -2,6 +2,7 @@ import os
 import logging
 from groq import Groq
 from models.schemas import GenerationResult
+from services.database import save_study_session
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ if not api_key:
 # Groq istemcisini başlatıyoruz
 client = Groq(api_key=api_key)
 
-def generate_study_material(document_text: any, *args, **kwargs) -> GenerationResult:
+def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dosya", *args, **kwargs) -> GenerationResult:
     try:
         # Groq'un en güçlü ve hızlı modellerinden biri (Llama 3.3 70B)
         model_name = 'llama-3.3-70b-versatile'
@@ -61,6 +62,18 @@ def generate_study_material(document_text: any, *args, **kwargs) -> GenerationRe
         result = GenerationResult.model_validate_json(response_text)
         
         logger.info(f"İçerik başarıyla üretildi! Skor: {result.ogreticilik_degerlendirmesi.skor}")
+        
+        # Üretilen materyali Supabase veritabanına kaydediyoruz
+        try:
+            save_study_session(
+                file_name=file_name,
+                ai_score=result.ogreticilik_degerlendirmesi.skor,
+                summary=result.ozet
+            )
+            logger.info("Çalışma oturumu başarıyla Supabase veritabanına kaydedildi.")
+        except Exception as db_err:
+            logger.error(f"Veritabanına kayıt sırasında hata oluştu (İşlem engellenmedi): {str(db_err)}")
+
         return result
 
     except Exception as e:
