@@ -63,8 +63,9 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
         
         logger.info(f"İçerik başarıyla üretildi! Skor: {result.ogreticilik_degerlendirmesi.skor}")
         
-        # Üretilen materyali Supabase veritabanına kaydediyoruz
+     # Üretilen materyali Supabase veritabanına kaydediyoruz
         try:
+            logger.info(f"Supabase'e kaydediliyor... Dosya: {file_name}, Skor: {result.ogreticilik_degerlendirmesi.skor}")
             save_study_session(
                 file_name=file_name,
                 ai_score=result.ogreticilik_degerlendirmesi.skor,
@@ -72,10 +73,5 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
             )
             logger.info("Çalışma oturumu başarıyla Supabase veritabanına kaydedildi.")
         except Exception as db_err:
-            logger.error(f"Veritabanına kayıt sırasında hata oluştu (İşlem engellenmedi): {str(db_err)}")
-
-        return result
-
-    except Exception as e:
-        logger.error(f"LLM içerik üretimi sırasında hata oluştu: {str(e)}")
-        raise e
+            logger.error(f"VERİTABANI KAYIT HATASI: {str(db_err)}")
+            raise db_err # Hatayı yukarı fırlatalım ki loglarda açıkça görebilelim
