@@ -1,9 +1,8 @@
 import os
 import time
 import logging
-import json
 from groq import Groq
-from models.schemas import GenerationResult, Flashcard, QuizQuestion, OgreticilikDegerlendirmesi
+from models.schemas import GenerationResult
 from services.database import save_study_session
 
 logging.basicConfig(level=logging.INFO)
@@ -15,10 +14,9 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-CHUNK_CHAR_LIMIT = 8000  # Yaklaşık 2000 token (Groq 7000 ITPM sınırının oldukça altında, güvenli limit)
+CHUNK_CHAR_LIMIT = 8000  # ~2000 token güvenli eşik
 
 def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> list[str]:
-    """Metni cümle veya paragrafları bölmemeye özen göstererek mantıksal parçalara ayırır."""
     paragraphs = text.split("\n")
     chunks = []
     current_chunk = []
@@ -39,7 +37,6 @@ def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> lis
     return chunks if chunks else [text]
 
 def process_chunk(chunk_text: str, chunk_index: int, total_chunks: int, model_name: str) -> GenerationResult:
-    """Belirli bir metin parçasını Groq API'ye gönderip yapılandırılmış JSON çıktısı alır."""
     prompt = f"""
     Sen uzman bir akademik asistansın. Görevin, aşağıda verilen ders notu bölümünü kullanarak 
     öğrencilerin konuyu derinlemesine öğrenmesini sağlayacak çalışma materyalleri oluşturmaktır.
@@ -86,11 +83,9 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
         total_chunks = len(chunks)
         logger.info(f"Belge analiz edildi: Toplam {len(text_content)} karakter, {total_chunks} parçaya bölündü.")
 
-        # Tek parça ise doğrudan çalıştır
         if total_chunks == 1:
             result = process_chunk(chunks[0], 1, 1, model_name)
         else:
-            # Çok parçalı metinler: Sırayla işle ve sonuçları harmanla
             combined_summaries = []
             combined_flashcards = []
             combined_quizzes = []
@@ -101,38 +96,43 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
                 logger.info(f"Parça {i}/{total_chunks} Groq API'ye gönderiliyor...")
                 chunk_result = process_chunk(chunk, i, total_chunks, model_name)
                 
-                combined_summaries.append(f"## Bölüm {i}\n\n{chunk_result.ozet_markdown}")
-                combined_flashcards.extend(chunk_result.flashcards)
-                combined_quizzes.extend(chunk_result.quiz)
-                total_score += chunk_result.ogreticilik_degerlendirmesi.skor
-                explanations.append(f"Bölüm {i}: {chunk_result.ogreticilik_degerlendirmesi.gerekce}")
+                # Pydantic model verilerini dict formatında topluyoruz
+                res_dict = chunk_result.model_dump()
+                
+                combined_summaries.append(f"## Bölüm {i}\n\n{res_dict.get('ozet_markdown', '')}")
+                combined_flashcards.extend(res_dict.get('flashcards', []))
+                combined_quizzes.extend(res_dict.get('quiz', []))
+                
+                score_obj = res_dict.get('ogreticilik_degerlendirmesi', {})
+                total_score += score_obj.get('skor', 80)
+                explanations.append(f"Bölüm {i}: {score_obj.get('gerekce', '')}")
 
-                # Dakikalık RPM/TPM limitine takılmamak için parçalar arası kısa bekleme
                 if i < total_chunks:
                     time.sleep(3)
 
             avg_score = round(total_score / total_chunks)
             merged_explanation = " | ".join(explanations)
 
-            result = GenerationResult(
-                ozet_markdown="\n\n---\n\n".join(combined_summaries),
-                flashcards=combined_flashcards,
-                quiz=combined_quizzes,
-                ogreticilik_degerlendirmesi=OgreticilikDegerlendirmesi(
-                    skor=avg_score,
-                    gerekce=merged_explanation
-                )
-            )
+            # Şemaya tam uygun dict oluşturup GenerationResult ile doğruluyoruz
+            merged_payload = {
+                "ozet_markdown": "\n\n---\n\n".join(combined_summaries),
+                "flashcards": combined_flashcards,
+                "quiz": combined_quizzes,
+                "ogreticilik_degerlendirmesi": {
+                    "skor": avg_score,
+                    "gerekce": merged_explanation
+                }
+            }
+            result = GenerationResult.model_validate(merged_payload)
 
-        logger.info(f"İçerik başarıyla üretildi! Toplam Soru: {len(result.quiz)}, Flashcard: {len(result.flashcards)}, Skor: {result.ogreticilik_degerlendirmesi.skor}")
+        logger.info(f"İçerik üretildi! Skor: {result.ogreticilik_degerlendirmesi.skor}")
 
-        # Supabase kaydı
         save_study_session(
             file_name=file_name,
             ai_score=result.ogreticilik_degerlendirmesi.skor,
             summary=result.ozet_markdown
         )
-        logger.info("Çalışma oturumu başarıyla Supabase veritabanına kaydedildi.")
+        logger.info("Çalışma oturumu Supabase'e kaydedildi.")
 
         return result
 
