@@ -14,26 +14,28 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-CHUNK_CHAR_LIMIT = 8000  # ~2000 token güvenli eşik
+# 3500 karakter ~850 tokene denk gelir. 
+# Ücretsiz plandaki 8000 TPM limitini asla zorlamaz.
+CHUNK_CHAR_LIMIT = 3500  
 
 def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> list[str]:
-    paragraphs = text.split("\n")
+    """Metni satır sonu olmasa dahi garanti olarak 3500 karakterlik parçalara böler."""
+    if len(text) <= chunk_size:
+        return [text]
+    
     chunks = []
-    current_chunk = []
-    current_length = 0
-
-    for paragraph in paragraphs:
-        if current_length + len(paragraph) + 1 > chunk_size and current_chunk:
-            chunks.append("\n".join(current_chunk))
-            current_chunk = [paragraph]
-            current_length = len(paragraph)
-        else:
-            current_chunk.append(paragraph)
-            current_length += len(paragraph) + 1
-
-    if current_chunk:
-        chunks.append("\n".join(current_chunk))
-
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        if end < len(text):
+            space_index = text.rfind(" ", start, end)
+            if space_index != -1 and space_index > start:
+                end = space_index
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        start = end
+        
     return chunks if chunks else [text]
 
 def process_chunk(chunk_text: str, chunk_index: int, total_chunks: int, model_name: str) -> GenerationResult:
@@ -45,8 +47,8 @@ def process_chunk(chunk_text: str, chunk_index: int, total_chunks: int, model_na
 
     LÜTFEN KURALLARA UY:
     1. ÖZET: Bu bölümdeki tüm kritik noktaları içeren alt başlıklı (Markdown ## ve ###) detaylı bir özet çıkar.
-    2. FLASHCARD: Bu bölümün kritik kavramlarını sorgulayan en az 6-8 adet bilgi kartı (flashcard) üret.
-    3. QUIZ: Bu bölümdeki kavramları ölçen analitik 4-5 adet çoktan seçmeli soru hazırla.
+    2. FLASHCARD: Bu bölümün kritik kavramlarını sorgulayan en az 4-6 adet bilgi kartı (flashcard) üret.
+    3. QUIZ: Bu bölümdeki kavramları ölçen analitik 3-4 adet çoktan seçmeli soru hazırla.
     4. ÖĞRETİCİLİK SKORU: Bu bölümün kapsayıcılığını 0-100 arası puanla ve kısa gerekçe sun.
 
     LÜTFEN ÇIKTIYI KESİNLİKLE GEÇERLİ BİR JSON FORMATINDA VER. Başka açıklama metni ekleme.
@@ -96,7 +98,6 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
                 logger.info(f"Parça {i}/{total_chunks} Groq API'ye gönderiliyor...")
                 chunk_result = process_chunk(chunk, i, total_chunks, model_name)
                 
-                # Pydantic model verilerini dict formatında topluyoruz
                 res_dict = chunk_result.model_dump()
                 
                 combined_summaries.append(f"## Bölüm {i}\n\n{res_dict.get('ozet_markdown', '')}")
@@ -107,13 +108,14 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
                 total_score += score_obj.get('skor', 80)
                 explanations.append(f"Bölüm {i}: {score_obj.get('gerekce', '')}")
 
+                # Dakikalık kota sınırını (TPM) korumak için parçalar arası bekleme
                 if i < total_chunks:
-                    time.sleep(3)
+                    logger.info("Dakikalık token kotasını korumak için 6 saniye bekleniyor...")
+                    time.sleep(6)
 
             avg_score = round(total_score / total_chunks)
             merged_explanation = " | ".join(explanations)
 
-            # Şemaya tam uygun dict oluşturup GenerationResult ile doğruluyoruz
             merged_payload = {
                 "ozet_markdown": "\n\n---\n\n".join(combined_summaries),
                 "flashcards": combined_flashcards,
@@ -125,14 +127,14 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
             }
             result = GenerationResult.model_validate(merged_payload)
 
-        logger.info(f"İçerik üretildi! Skor: {result.ogreticilik_degerlendirmesi.skor}")
+        logger.info(f"İçerik başarıyla üretildi! Toplam Soru: {len(result.quiz)}, Flashcard: {len(result.flashcards)}, Skor: {result.ogreticilik_degerlendirmesi.skor}")
 
         save_study_session(
             file_name=file_name,
             ai_score=result.ogreticilik_degerlendirmesi.skor,
             summary=result.ozet_markdown
         )
-        logger.info("Çalışma oturumu Supabase'e kaydedildi.")
+        logger.info("Çalışma oturumu Supabase veritabanına kaydedildi.")
 
         return result
 
