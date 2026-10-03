@@ -17,7 +17,7 @@ client = Groq(api_key=api_key)
 def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dosya", *args, **kwargs) -> GenerationResult:
     try:
         # Groq'un en güçlü ve hızlı modellerinden biri (Llama 3.3 70B)
-        model_name = 'openai/gpt-oss-20b'
+        model_name = 'qwen/qwen3.8-27b'
 
         text_content = (
             document_text.text
