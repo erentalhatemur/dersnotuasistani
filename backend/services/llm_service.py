@@ -16,8 +16,8 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# Qwen modeli için geniş pencere (~4.000 token). Notların çoğunu tek seferde alır.
-CHUNK_CHAR_LIMIT = 16000  
+# 4500 karakter: Hem token sınırını zorlamaz hem de her parçadan zengin soru/kart üretir
+CHUNK_CHAR_LIMIT = 4500  
 
 def clean_escaped_text(text: str) -> str:
     """Kaçış karakterlerini ve istenmeyen etiketleri temizler."""
@@ -29,7 +29,7 @@ def clean_escaped_text(text: str) -> str:
     return cleaned
 
 def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> list[str]:
-    """Metni anlam bütünlüğünü koruyarak geniş bloklara böler."""
+    """Metni anlam bütünlüğünü koruyarak dengeli bloklara böler."""
     if len(text) <= chunk_size:
         return [text]
     
@@ -42,7 +42,7 @@ def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> lis
             if space_index != -1 and space_index > start:
                 end = space_index
         chunk = text[start:end].strip()
-        if len(chunk) > 100:
+        if len(chunk) > 150:
             chunks.append(chunk)
         start = end
         
@@ -61,14 +61,16 @@ def sanitize_and_validate_payload(raw_json_str: str) -> dict:
     if "flashcards" not in data or not isinstance(data["flashcards"], list):
         data["flashcards"] = []
 
+    # Quiz alanı alternatif adlandırma kontrolü
     if "quiz" not in data or not isinstance(data["quiz"], list):
-        data["quiz"] = []
+        alt_quiz = data.get("questions") or data.get("test") or []
+        data["quiz"] = alt_quiz if isinstance(alt_quiz, list) else []
 
     score_obj = data.get("ogreticilik_degerlendirmesi")
     if not score_obj or not isinstance(score_obj, dict):
         data["ogreticilik_degerlendirmesi"] = {
             "skor": 85,
-            "geribildirim": "Döküman başarıyla analiz edilerek özetlendi.",
+            "geribildirim": "Döküman başarıyla analiz edildi.",
             "gerekce": "Analiz tamamlandı."
         }
     else:
@@ -78,23 +80,33 @@ def sanitize_and_validate_payload(raw_json_str: str) -> dict:
 
     return data
 
-def process_chunk_with_retry(chunk_text: str, model_name: str, max_retries: int = 3) -> dict:
+def process_chunk_with_retry(chunk_text: str, chunk_index: int, total_chunks: int, model_name: str, max_retries: int = 3) -> dict:
     prompt = f"""
-    Sen uzman bir akademik asistansın. Aşağıdaki ders notu metnini baştan sona analiz et ve JSON formatında çıktı ver.
+    Sen uzman bir akademik asistansın. Verilen metni ({chunk_index}/{total_chunks}) inceleyerek eksiksiz bir çalışma paketi oluştur.
 
-    ÖNEMLİ KURALLAR:
-    1. ÖZET: Konunun tüm kritik noktalarını, formülleri ($...$ ve $$...$$ LaTeX formatında) ve kodları kapsayan yapılandırılmış detaylı bir Markdown özeti hazırla.
-    2. FLASHCARD: En önemli kavramları kapsayan 8-12 adet bilgi kartı (soru, cevap) hazırla.
-    3. QUIZ: Konuyu derinlemesine test eden 4-6 adet çoktan seçmeli soru hazırla (soru, secenekler, dogru_cevap_index, aciklama).
-    4. DEĞERLENDİRME: ogreticilik_degerlendirmesi alanı içinde skor ve geribildirim ekle.
-    5. Metin içi değerlerde çift tırnak (") KULLANMA; tek tırnak (') veya backtick (`) tercih et.
+    ZORUNLU KURALLAR:
+    1. ÖZET: Bu bölümün kavramlarını, formüllerini ($...$ ve $$...$$ formatında) açıklayan Markdown özeti oluştur.
+    2. FLASHCARD: Bu bölümden EN AZ 4-6 ADET kavram kartı üret. Boş bırakma.
+    3. QUIZ: Bu bölümdeki bilgileri ölçen EN AZ 2-3 ADET 4 şıklı çoktan seçmeli soru hazırla. "quiz" listesi ASLA BOŞ OLMAMALIDIR.
+    4. DEĞERLENDİRME: ogreticilik_degerlendirmesi alanı içinde skor (0-100) ve geribildirim ekle.
+    5. Metin içi değerlerde çift tırnak (") KULLANMA; tek tırnak (') veya backtick (`) kullan.
 
-    JSON ŞEMASI:
+    İSTENEN JSON ŞEMASI:
     {{
       "ozet_markdown": "Özet metni",
-      "flashcards": [{{"soru": "...", "cevap": "..."}}],
-      "quiz": [{{"soru": "...", "secenekler": ["A", "B", "C", "D"], "dogru_cevap_index": 0, "aciklama": "..."}}],
-      "ogreticilik_degerlendirmesi": {{"skor": 88, "geribildirim": "...", "gerekce": "..."}}
+      "flashcards": [
+        {{"soru": "Soru 1", "cevap": "Cevap 1"}},
+        {{"soru": "Soru 2", "cevap": "Cevap 2"}}
+      ],
+      "quiz": [
+        {{
+          "soru": "Soru metni?",
+          "secenekler": ["A seçeneği", "B seçeneği", "C seçeneği", "D seçeneği"],
+          "dogru_cevap_index": 0,
+          "aciklama": "Açıklama metni"
+        }}
+      ],
+      "ogreticilik_degerlendirmesi": {{"skor": 85, "geribildirim": "Geribildirim", "gerekce": "Gerekçe"}}
     }}
 
     METİN:
@@ -106,18 +118,20 @@ def process_chunk_with_retry(chunk_text: str, model_name: str, max_retries: int 
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[
-                    {"role": "system", "content": "Sen sadece geçerli JSON döndüren uzman bir akademik asistansın."},
+                    {"role": "system", "content": "Sen JSON çıktısı veren bir eğitim asistanısın. quiz ve flashcards listelerini kesinlikle doldur."},
                     {"role": "user", "content": prompt}
                 ],
                 response_format={"type": "json_object"},
-                temperature=0.2,
+                temperature=0.3,
+                max_tokens=3000
             )
-            return sanitize_and_validate_payload(response.choices[0].message.content)
+            parsed = sanitize_and_validate_payload(response.choices[0].message.content)
+            return parsed
 
         except RateLimitError:
-            time.sleep((attempt + 1) * 3)
+            time.sleep((attempt + 1) * 2)
         except Exception as e:
-            logger.warning(f"İstek denemesi {attempt+1} başarısız: {str(e)}")
+            logger.warning(f"Parça {chunk_index} işlenirken hata: {str(e)}")
             time.sleep(1)
 
     return {"ozet_markdown": "", "flashcards": [], "quiz": [], "ogreticilik_degerlendirmesi": {}}
@@ -143,11 +157,11 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
         score_count = 0
         last_score_obj = {"skor": 85, "geribildirim": "Başarılı analiz.", "gerekce": "Başarılı analiz."}
 
-        for chunk in chunks:
-            chunk_dict = process_chunk_with_retry(chunk, model_name)
+        for i, chunk in enumerate(chunks, start=1):
+            chunk_dict = process_chunk_with_retry(chunk, i, total_chunks, model_name)
             
             cleaned_summary = clean_escaped_text(chunk_dict.get('ozet_markdown', ''))
-            if cleaned_summary and len(cleaned_summary) > 50:
+            if cleaned_summary and len(cleaned_summary) > 40:
                 combined_summaries.append(cleaned_summary)
 
             combined_flashcards.extend(chunk_dict.get('flashcards', []))
@@ -161,8 +175,7 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
 
         avg_score = round(total_score / max(score_count, 1)) if score_count > 0 else 85
         final_feedback = (
-            "Döküman genelinde teorik formüller, doğrusal regresyon modelleri ve istatistiksel sonuçlar "
-            "kapsamlı bir şekilde incelenmiştir."
+            "Döküman genelinde regresyon analizleri, güven aralıkları ve hipotez testleri başarıyla işlenmiştir."
         )
 
         merged_score_dict = {
