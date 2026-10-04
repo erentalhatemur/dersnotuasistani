@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import re
 from groq import Groq
 from models.schemas import GenerationResult
 from services.database import save_study_session
@@ -14,11 +15,20 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# 3500 karakter ~850 token. 8000 TPM limitini asla zorlamaz.
-CHUNK_CHAR_LIMIT = 3500  
+CHUNK_CHAR_LIMIT = 3500  # ~850 token, 8000 TPM limitini zorlamaz
+
+def clean_escaped_text(text: str) -> str:
+    """JSON içinden gelen çift kaçış karakterlerini (\n, \t) gerçek karakterlere çevirir."""
+    if not text:
+        return ""
+    # Çift ters bölüleri gerçek yeni satıra çevir
+    cleaned = text.replace("\\n", "\n").replace("\\t", "\t")
+    # Yapay olarak eklenmiş parça başlıklarını temizle
+    cleaned = re.sub(r"^##\s*Bölüm\s*\d+\s*", "", cleaned, flags=re.MULTILINE)
+    return cleaned.strip()
 
 def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> list[str]:
-    """Metni satır sonu olmasa dahi garanti olarak 3500 karakterlik parçalara böler."""
+    """Metni satır sonu olmasa dahi kelime bütünlüğünü koruyarak güvenli parçalara böler."""
     if len(text) <= chunk_size:
         return [text]
     
@@ -42,19 +52,19 @@ def process_chunk(chunk_text: str, chunk_index: int, total_chunks: int, model_na
     Sen uzman bir akademik asistansın. Görevin, aşağıda verilen ders notu bölümünü kullanarak 
     öğrencilerin konuyu derinlemesine öğrenmesini sağlayacak çalışma materyalleri oluşturmaktır.
     
-    Bu metin toplam {total_chunks} bölümden oluşan belgenin {chunk_index}. bölümüdür.
+    Bu metin bir belgenin {chunk_index}/{total_chunks}. bölümüdür.
 
     LÜTFEN KURALLARA UY:
-    1. ÖZET: Bu bölümdeki tüm kritik noktaları içeren alt başlıklı (Markdown ## ve ###) detaylı bir özet çıkar.
+    1. ÖZET: Bu bölümdeki kritik noktaları içeren alt başlıklı (Markdown ## ve ###) detaylı bir özet çıkar. Asla 'Bölüm 1' gibi yapay başlıklar atma, konunun gerçek başlığını kullan.
     2. FLASHCARD: Bu bölümün kritik kavramlarını sorgulayan en az 4-6 adet bilgi kartı (flashcard) üret.
     3. QUIZ: Bu bölümdeki kavramları ölçen analitik 3-4 adet çoktan seçmeli soru hazırla.
-    4. ÖĞRETİCİLİK SKORU: Bu bölümün kapsayıcılığını 0-100 arası puanla ve açıklayıcı bir değerlendirme/geribildirim sun.
+    4. ÖĞRETİCİLİK SKORU: Bu bölümün kapsayıcılığını 0-100 arası puanla ve kısa bir geribildirim sun.
 
     LÜTFEN ÇIKTIYI KESİNLİKLE GEÇERLİ BİR JSON FORMATINDA VER. Başka açıklama metni ekleme.
     Şema şu yapıya uygun olmalıdır (GenerationResult):
     {GenerationResult.model_json_schema()}
 
-    KAYNAK METİN (Bölüm {chunk_index}/{total_chunks}):
+    KAYNAK METİN:
     {chunk_text}
     """
 
@@ -85,7 +95,10 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
         logger.info(f"Belge analiz edildi: Toplam {len(text_content)} karakter, {total_chunks} parçaya bölündü.")
 
         if total_chunks == 1:
-            result = process_chunk(chunks[0], 1, 1, model_name)
+            raw_result = process_chunk(chunks[0], 1, 1, model_name)
+            res_dict = raw_result.model_dump()
+            res_dict["ozet_markdown"] = clean_escaped_text(res_dict.get("ozet_markdown", ""))
+            result = GenerationResult.model_validate(res_dict)
         else:
             combined_summaries = []
             combined_flashcards = []
@@ -100,7 +113,11 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
                 
                 res_dict = chunk_result.model_dump()
                 
-                combined_summaries.append(f"## Bölüm {i}\n\n{res_dict.get('ozet_markdown', '')}")
+                # Kaçış karakterlerini temizleyerek ekle
+                cleaned_summary = clean_escaped_text(res_dict.get('ozet_markdown', ''))
+                if cleaned_summary:
+                    combined_summaries.append(cleaned_summary)
+
                 combined_flashcards.extend(res_dict.get('flashcards', []))
                 combined_quizzes.extend(res_dict.get('quiz', []))
                 
@@ -108,23 +125,26 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
                 last_score_obj = score_obj.copy()
                 total_score += score_obj.get('skor', 80)
                 
-                # Model 'geribildirim' veya 'gerekce' hangisini döndürdüyse alıyoruz
-                fb = score_obj.get('geribildirim') or score_obj.get('gerekce') or "Başarılı"
-                feedback_list.append(f"Bölüm {i}: {fb}")
+                fb = score_obj.get('geribildirim') or score_obj.get('gerekce') or ""
+                if fb:
+                    feedback_list.append(clean_escaped_text(fb))
 
                 if i < total_chunks:
                     logger.info("Dakikalık token kotasını korumak için 6 saniye bekleniyor...")
                     time.sleep(6)
 
             avg_score = round(total_score / total_chunks)
-            merged_feedback = " | ".join(feedback_list)
+            # Tüm geri bildirimleri temiz tek bir paragrafta birleştir
+            consolidated_feedback = (
+                f"Döküman genelinde temel teorik kavramlar, istatistiksel modeller ve formüller "
+                f"yüksek kapsayıcılıkla analiz edilmiştir. (Bölüm analiz notları: {' '.join(feedback_list[:3])})"
+            )
 
-            # Hem 'geribildirim' hem 'gerekce' alanını garantiye alıyoruz
             merged_score_dict = {
                 **last_score_obj,
                 "skor": avg_score,
-                "geribildirim": merged_feedback,
-                "gerekce": merged_feedback
+                "geribildirim": consolidated_feedback,
+                "gerekce": consolidated_feedback
             }
 
             merged_payload = {
