@@ -27,6 +27,45 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
   const flashcards = result.flashcards || [];
   const quiz = result.quiz || [];
 
+  // 1. Markdown Özetini İndirme
+  const exportMarkdown = () => {
+    const baseName = filename.replace(/\.[^/.]+$/, "");
+    const blob = new Blob([summaryText], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${baseName}_Ozet.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 2. Anki Flashcard İndirme (Tab-separated TSV/TXT)
+  const exportAnki = () => {
+    if (!flashcards.length) return;
+    const baseName = filename.replace(/\.[^/.]+$/, "");
+    
+    // Anki formatı: Front \t Back \n
+    const content = flashcards
+      .map((card) => {
+        const q = (card.soru || "").replace(/\t/g, " ").replace(/\n/g, "<br>");
+        const a = (card.cevap || "").replace(/\t/g, " ").replace(/\n/g, "<br>");
+        return `${q}\t${a}`;
+      })
+      .join("\n");
+
+    const blob = new Blob([content], { type: "text/tab-separated-values;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${baseName}_Anki_Kartlari.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -53,7 +92,7 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
 
       <div style={{ maxWidth: "820px", margin: "0 auto", position: "relative", zIndex: 1 }}>
         
-        {/* Üst Başlık & Skor Paneli */}
+        {/* Üst Başlık, Skor ve Dışa Aktarma Butonları */}
         <div style={{
           background: "rgba(255, 255, 255, 0.03)",
           backdropFilter: "blur(20px)",
@@ -65,6 +104,8 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
+          gap: "16px",
           marginBottom: "24px"
         }}>
           <div>
@@ -80,7 +121,7 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
             }}>
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#c084fc", boxShadow: "0 0 8px #c084fc" }} />
               <span style={{ fontSize: "11px", fontWeight: 700, color: "#e879f9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                AI Analizi Tamamlandı
+                AI Analizi Hazır
               </span>
             </div>
             <h1 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700, color: "#ffffff", letterSpacing: "-0.02em" }}>
@@ -88,31 +129,94 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
             </h1>
           </div>
 
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-            background: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            padding: "8px 18px",
-            borderRadius: "16px"
-          }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Skor</div>
-              <div style={{ fontSize: "1.45rem", fontWeight: 800, color: "#f8fafc", lineHeight: 1 }}>{evaluation.skor}</div>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {/* Hızlı Export Butonları */}
+            <button
+              onClick={exportMarkdown}
+              title="Özeti Markdown (.md) olarak indir"
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                color: "#e2e8f0",
+                padding: "8px 14px",
+                borderRadius: "12px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#c084fc";
+                e.currentTarget.style.background = "rgba(168, 85, 247, 0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+              }}
+            >
+              📥 Markdown İndir
+            </button>
+
+            {flashcards.length > 0 && (
+              <button
+                onClick={exportAnki}
+                title="Kartları Anki (.txt) olarak indir"
+                style={{
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  color: "#e2e8f0",
+                  padding: "8px 14px",
+                  borderRadius: "12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#f472b6";
+                  e.currentTarget.style.background = "rgba(244, 114, 182, 0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)";
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                }}
+              >
+                ⚡ Anki Kartları
+              </button>
+            )}
+
+            {/* Skor Rozeti */}
             <div style={{
-              width: "38px",
-              height: "38px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #a855f7 0%, #ec4899 100%)",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: "15px",
-              boxShadow: "0 4px 12px rgba(236, 72, 153, 0.3)"
+              gap: "10px",
+              background: "rgba(255, 255, 255, 0.04)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              padding: "6px 14px",
+              borderRadius: "14px"
             }}>
-              ✨
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "9px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Skor</div>
+                <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#f8fafc", lineHeight: 1 }}>{evaluation.skor}</div>
+              </div>
+              <div style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "10px",
+                background: "linear-gradient(135deg, #a855f7 0%, #ec4899 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "13px"
+              }}>
+                ✨
+              </div>
             </div>
           </div>
         </div>
@@ -215,10 +319,32 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
 
         {/* 2. FLASHCARDS */}
         {activeTab === "cards" && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
-            {flashcards.map((card, index) => (
-              <FlashcardItem key={index} index={index + 1} soru={card.soru} cevap={card.cevap} />
-            ))}
+          <div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px" }}>
+              <button
+                onClick={exportAnki}
+                style={{
+                  background: "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%)",
+                  border: "1px solid rgba(168, 85, 247, 0.4)",
+                  color: "#e879f9",
+                  padding: "8px 16px",
+                  borderRadius: "12px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                ⚡ Anki Formatında İndir (.txt)
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
+              {flashcards.map((card, index) => (
+                <FlashcardItem key={index} index={index + 1} soru={card.soru} cevap={card.cevap} />
+              ))}
+            </div>
           </div>
         )}
 
