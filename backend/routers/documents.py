@@ -8,6 +8,7 @@ from extractors.base import ExtractionError
 from extractors.registry import SUPPORTED_EXTENSIONS, extract_from_file
 from models.schemas import JobResponse
 from services import job_store
+from services.database import save_study_session
 from services.llm_service import generate_study_material
 
 router = APIRouter(prefix="/api", tags=["documents"])
@@ -42,6 +43,36 @@ def _process_document(tmp_path: str, extension: str, filename: str, job_id: str)
     try:
         extraction = extract_from_file(tmp_path, extension)
         result = generate_study_material(extraction, filename)
+
+        # Supabase veritabanına oturum kaydı (özet, skor, kartlar ve testler)
+        try:
+            res_dict = (
+                result.model_dump()
+                if hasattr(result, "model_dump")
+                else (result.dict() if hasattr(result, "dict") else result)
+            )
+
+            if isinstance(res_dict, dict):
+                ai_score = res_dict.get("ogreticilik_degerlendirmesi", {}).get("skor", 85)
+                summary = res_dict.get("ozet_markdown", "")
+                flashcards = res_dict.get("flashcards", [])
+                quiz = res_dict.get("quiz", [])
+            else:
+                ai_score = 85
+                summary = ""
+                flashcards = []
+                quiz = []
+
+            save_study_session(
+                file_name=filename,
+                ai_score=ai_score,
+                summary=summary,
+                flashcards=flashcards,
+                quiz=quiz,
+            )
+        except Exception as db_err:
+            print(f"Supabase kayıt hatası: {db_err}")
+
         job_store.mark_done(job_id, result)
     except ExtractionError as e:
         job_store.mark_error(job_id, str(e))

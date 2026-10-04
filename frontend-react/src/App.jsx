@@ -44,8 +44,8 @@ export default function App() {
           }),
           result: {
             ozet_markdown: s.summary,
-            flashcards: [],
-            quiz: [],
+            flashcards: s.flashcards || [],
+            quiz: s.quiz || [],
             ogreticilik_degerlendirmesi: {
               skor: s.ai_score,
               geribildirim: "Veritabanı arşivinden yüklendi.",
