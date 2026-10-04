@@ -9,7 +9,7 @@ const POLL_INTERVAL_MS = 2000;
 const STORAGE_KEY = "ders_notu_history_v1";
 
 export default function App() {
-  const [status, setStatus] = useState("idle"); // "idle" | "processing" | "error" | "done"
+  const [status, setStatus] = useState("idle");
   const [filename, setFilename] = useState("");
   const [result, setResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -17,10 +17,8 @@ export default function App() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const pollTimeoutRef = useRef(null);
 
-  // Veritabanı (Supabase) ve LocalStorage geçmişini birleştirip getir
   const fetchCombinedHistory = useCallback(async () => {
     setIsLoadingHistory(true);
-
     let localItems = [];
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -55,13 +53,10 @@ export default function App() {
           },
         }));
 
-        // Eşleşen dosyaları birleştir (yereldeki quiz/flashcard'ları önceliklendir)
         const combined = [...localItems];
         serverItems.forEach((serverItem) => {
           const exists = combined.some((l) => l.filename === serverItem.filename);
-          if (!exists) {
-            combined.push(serverItem);
-          }
+          if (!exists) combined.push(serverItem);
         });
 
         setHistory(combined);
@@ -69,7 +64,6 @@ export default function App() {
         setHistory(localItems);
       }
     } catch (err) {
-      console.warn("Sunucu geçmişine ulaşılamadı, yerel geçmiş kullanılıyor:", err);
       setHistory(localItems);
     } finally {
       setIsLoadingHistory(false);
@@ -125,7 +119,7 @@ export default function App() {
             setStatus("error");
           }
         } catch (err) {
-          setErrorMessage("Sunucuya bağlanılamadı. Backend servisinin açık olduğundan emin olun.");
+          setErrorMessage("Sunucuya bağlanılamadı.");
           setStatus("error");
         }
       };
@@ -155,7 +149,7 @@ export default function App() {
         const job = await res.json();
         pollStatus(job.job_id, file.name);
       } catch (err) {
-        setErrorMessage(err.message || "Yükleme sırasında bir hata oluştu.");
+        setErrorMessage(err.message || "Yükleme sırasında hata oluştu.");
         setStatus("error");
       }
     },
@@ -175,104 +169,103 @@ export default function App() {
     }
   };
 
-  if (status === "processing") {
-    return <ProcessingScreen filename={filename} />;
-  }
-
-  if (status === "error") {
-    return <ErrorScreen message={errorMessage} onRetry={reset} />;
-  }
-
+  if (status === "processing") return <ProcessingScreen filename={filename} />;
+  if (status === "error") return <ErrorScreen message={errorMessage} onRetry={reset} />;
   if (status === "done" && result) {
-    return (
-      <ResultsScreen 
-        filename={filename} 
-        result={result} 
-        onNewUpload={reset} 
-      />
-    );
+    return <ResultsScreen filename={filename} result={result} onNewUpload={reset} />;
   }
 
   return (
-    <div style={{ padding: "30px 20px", maxWidth: "680px", margin: "0 auto", color: "var(--ink, #1e293b)" }}>
-      {/* Dosya Yükleme Ekranı */}
-      <UploadScreen onFileSelected={handleFileSelected} />
+    <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "40px 20px", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <div style={{ maxWidth: "680px", margin: "0 auto" }}>
+        
+        {/* Upload Bileşeni */}
+        <UploadScreen onFileSelected={handleFileSelected} />
 
-      {/* Geçmiş Çalışmalar Bölümü */}
-      <div style={{ marginTop: "36px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-          <h3 style={{ fontSize: "1.15rem", fontWeight: 900, margin: 0 }}>⏱️ Geçmiş Çalışmalarım</h3>
-          {history.length > 0 && (
-            <button 
-              onClick={clearHistory}
-              style={{ background: "none", border: "none", color: "#ef4444", fontWeight: 800, fontSize: "12px", cursor: "pointer" }}
-            >
-              Temizle
-            </button>
-          )}
-        </div>
-
-        {isLoadingHistory && (
-          <div style={{ textAlign: "center", fontSize: "13px", color: "#64748b", padding: "12px" }}>
-            Geçmiş yükleniyor...
+        {/* Geçmiş Çalışmalar Bölümü */}
+        <div style={{ marginTop: "40px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>
+              Geçmiş Çalışmalarım
+            </h3>
+            {history.length > 0 && (
+              <button
+                onClick={clearHistory}
+                style={{ background: "none", border: "none", color: "#94a3b8", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}
+              >
+                Temizle
+              </button>
+            )}
           </div>
-        )}
 
-        {!isLoadingHistory && history.length === 0 && (
-          <div style={{
-            border: "2px dashed #cbd5e1",
-            borderRadius: "14px",
-            padding: "24px",
-            textAlign: "center",
-            fontSize: "13px",
-            color: "#64748b",
-            background: "#f8fafc"
-          }}>
-            Henüz kaydedilmiş bir çalışma oturumu bulunmuyor.
-          </div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {history.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleSelectHistoryItem(item)}
-              style={{
-                border: "2.5px solid var(--ink, #1e293b)",
-                borderRadius: "14px",
-                padding: "16px 20px",
-                background: "#fff",
-                boxShadow: "4px 4px 0px var(--ink, #1e293b)",
-                cursor: "pointer",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                transition: "all 0.15s ease"
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "translate(-2px, -2px)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
-            >
-              <div style={{ overflow: "hidden", paddingRight: "12px" }}>
-                <div style={{ fontWeight: 800, fontSize: "14px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                  {item.filename}
-                </div>
-                <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "4px" }}>
-                  {item.date}
-                </div>
-              </div>
-              <div style={{
-                background: "#fef08a",
-                border: "2px solid var(--ink, #1e293b)",
-                padding: "6px 12px",
-                borderRadius: "10px",
-                fontSize: "12px",
-                fontWeight: 900,
-                flexShrink: 0
-              }}>
-                {item.result?.ogreticilik_degerlendirmesi?.skor ? `${item.result.ogreticilik_degerlendirmesi.skor} Puan` : "İncele"}
-              </div>
+          {isLoadingHistory && (
+            <div style={{ textAlign: "center", fontSize: "13px", color: "#94a3b8", padding: "16px" }}>
+              Yükleniyor...
             </div>
-          ))}
+          )}
+
+          {!isLoadingHistory && history.length === 0 && (
+            <div style={{
+              border: "1px dashed #cbd5e1",
+              borderRadius: "14px",
+              padding: "24px",
+              textAlign: "center",
+              fontSize: "13.5px",
+              color: "#94a3b8",
+              background: "#ffffff"
+            }}>
+              Henüz kaydedilmiş bir çalışma oturumu bulunmuyor.
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {history.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleSelectHistoryItem(item)}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "16px 20px",
+                  boxShadow: "0 2px 6px rgba(0, 0, 0, 0.02)",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  transition: "all 0.15s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#c7d2fe";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <div style={{ overflow: "hidden", paddingRight: "14px" }}>
+                  <div style={{ fontWeight: 700, fontSize: "14.5px", color: "#1e293b", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                    {item.filename}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "3px" }}>
+                    {item.date}
+                  </div>
+                </div>
+                <div style={{
+                  background: "#e0e7ff",
+                  color: "#4f46e5",
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  fontSize: "12.5px",
+                  fontWeight: 700,
+                  flexShrink: 0
+                }}>
+                  {item.result?.ogreticilik_degerlendirmesi?.skor ? `${item.result.ogreticilik_degerlendirmesi.skor} Puan` : "İncele"}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

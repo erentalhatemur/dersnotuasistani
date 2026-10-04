@@ -18,155 +18,217 @@ function formatMarkdownText(rawText) {
 export default function ResultsScreen({ filename, result, onNewUpload }) {
   const [activeTab, setActiveTab] = useState("summary");
 
-  const evaluation = result.ogreticilik_degerlendirmesi || { skor: 85, geribildirim: "Analiz tamamlandı." };
+  const evaluation = result.ogreticilik_degerlendirmesi || {
+    skor: 85,
+    geribildirim: "Analiz başarıyla tamamlandı.",
+  };
   const rawSummary = result.ozet_markdown || "Özet bulunamadı.";
   const summaryText = formatMarkdownText(rawSummary);
   const flashcards = result.flashcards || [];
   const quiz = result.quiz || [];
 
   return (
-    <div style={{ padding: "20px", maxWidth: "720px", margin: "0 auto", color: "var(--ink)" }}>
+    <div style={{ maxWidth: "820px", margin: "0 auto", padding: "32px 20px", fontFamily: "system-ui, -apple-system, sans-serif", color: "#0f172a" }}>
       
-      {/* Üst Kart */}
-      <div style={{ 
-        border: "3px solid var(--ink)", 
-        borderRadius: 20, 
-        padding: "20px", 
-        background: "#fff", 
-        boxShadow: "4px 4px 0px var(--ink)",
-        marginBottom: "20px",
+      {/* Üst Header / Metrik Barı */}
+      <div style={{
+        background: "#ffffff",
+        borderRadius: "18px",
+        padding: "24px 28px",
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "center"
+        alignItems: "center",
+        marginBottom: "24px"
       }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 900 }}>Ders Notu Asistanı</h2>
-          <p style={{ margin: "5px 0 0 0", fontSize: "0.9rem", opacity: 0.7 }}>{filename}</p>
+          <span style={{ fontSize: "12px", fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Ders Notu Özeti
+          </span>
+          <h2 style={{ margin: "4px 0 0 0", fontSize: "1.35rem", fontWeight: 800, color: "#1e293b" }}>
+            {filename}
+          </h2>
         </div>
-        <div style={{ 
-          background: "#fef08a", 
-          border: "2px solid var(--ink)", 
-          borderRadius: "12px", 
-          padding: "8px 16px", 
-          textAlign: "center",
-          boxShadow: "2px 2px 0px var(--ink)"
+
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          background: "#f8fafc",
+          padding: "8px 16px",
+          borderRadius: "14px",
+          border: "1px solid #e2e8f0"
         }}>
-          <div style={{ fontSize: "1.2rem", fontWeight: 900 }}>{evaluation.skor}</div>
-          <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>Skor</div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Akademik Skor</div>
+            <div style={{ fontSize: "1.3rem", fontWeight: 900, color: "#0f172a", lineHeight: 1 }}>{evaluation.skor}</div>
+          </div>
+          <div style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "10px",
+            background: "#e0e7ff",
+            color: "#4f46e5",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 800,
+            fontSize: "14px"
+          }}>
+            🎯
+          </div>
         </div>
       </div>
 
-      {/* Sekmeler */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-        <TabButton active={activeTab === "summary"} onClick={() => setActiveTab("summary")}>📖 Özet</TabButton>
-        <TabButton active={activeTab === "cards"} onClick={() => setActiveTab("cards")}>⚡ Kartlar ({flashcards.length})</TabButton>
-        <TabButton active={activeTab === "quiz"} onClick={() => setActiveTab("quiz")}>🎯 Quiz ({quiz.length})</TabButton>
+      {/* Modern Sekme Seçici */}
+      <div style={{
+        display: "flex",
+        background: "#f1f5f9",
+        padding: "5px",
+        borderRadius: "14px",
+        gap: "6px",
+        marginBottom: "24px"
+      }}>
+        <TabButton active={activeTab === "summary"} onClick={() => setActiveTab("summary")}>
+          📖 Konu Özeti
+        </TabButton>
+        <TabButton active={activeTab === "cards"} onClick={() => setActiveTab("cards")}>
+          ⚡ Bilgi Kartları ({flashcards.length})
+        </TabButton>
+        <TabButton active={activeTab === "quiz"} onClick={() => setActiveTab("quiz")}>
+          🎯 Quiz & Test ({quiz.length})
+        </TabButton>
       </div>
 
-      {/* 1. ÖZET */}
+      {/* 1. ÖZET ALANI */}
       {activeTab === "summary" && (
-        <div style={{ 
-          border: "3px solid var(--ink)", 
-          borderRadius: 20, 
-          padding: "24px", 
-          background: "#fff", 
-          boxShadow: "4px 4px 0px var(--ink)",
-          lineHeight: 1.65
+        <div style={{
+          background: "#ffffff",
+          borderRadius: "18px",
+          padding: "32px",
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 4px 25px -4px rgba(0, 0, 0, 0.04)",
+          lineHeight: 1.7
         }}>
-          <ReactMarkdown 
+          <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={{
-              h2: ({node, ...props}) => <h2 style={{ fontSize: "1.3rem", fontWeight: 900, marginTop: "24px", marginBottom: "10px", borderBottom: "2px solid #e2e8f0", paddingBottom: "6px" }} {...props} />,
-              h3: ({node, ...props}) => <h3 style={{ fontSize: "1.1rem", fontWeight: 800, marginTop: "18px", marginBottom: "8px" }} {...props} />,
-              p: ({node, ...props}) => <p style={{ marginBottom: "12px", fontSize: "14.5px" }} {...props} />,
-              ul: ({node, ...props}) => <ul style={{ paddingLeft: "20px", marginBottom: "14px" }} {...props} />,
-              li: ({node, ...props}) => <li style={{ marginBottom: "6px", fontSize: "14px" }} {...props} />,
-              code: ({node, inline, ...props}) => inline 
-                ? <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", fontSize: "13px", fontFamily: "monospace" }} {...props} />
-                : <pre style={{ background: "#0f172a", color: "#f8fafc", padding: "14px", borderRadius: "10px", overflowX: "auto", fontSize: "13px", marginBottom: "14px" }}><code {...props} /></pre>,
-              table: ({node, ...props}) => (
-                <div style={{ overflowX: "auto", marginBottom: "16px" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", border: "2px solid var(--ink)" }} {...props} />
+              h2: ({ node, ...props }) => (
+                <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginTop: "32px", marginBottom: "14px", borderBottom: "1px solid #f1f5f9", paddingBottom: "8px" }} {...props} />
+              ),
+              h3: ({ node, ...props }) => (
+                <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "#334155", marginTop: "24px", marginBottom: "10px" }} {...props} />
+              ),
+              p: ({ node, ...props }) => (
+                <p style={{ marginBottom: "16px", fontSize: "15px", color: "#334155" }} {...props} />
+              ),
+              ul: ({ node, ...props }) => (
+                <ul style={{ paddingLeft: "24px", marginBottom: "18px", color: "#334155" }} {...props} />
+              ),
+              li: ({ node, ...props }) => (
+                <li style={{ marginBottom: "8px", fontSize: "14.5px" }} {...props} />
+              ),
+              code: ({ node, inline, ...props }) =>
+                inline ? (
+                  <code style={{ background: "#f1f5f9", color: "#4f46e5", padding: "3px 7px", borderRadius: "6px", fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }} {...props} />
+                ) : (
+                  <pre style={{ background: "#0f172a", color: "#f8fafc", padding: "18px", borderRadius: "12px", overflowX: "auto", fontSize: "13.5px", marginBottom: "20px" }}><code {...props} /></pre>
+                ),
+              table: ({ node, ...props }) => (
+                <div style={{ overflowX: "auto", margin: "20px 0" }}>
+                  <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, borderRadius: "10px", overflow: "hidden", border: "1px solid #e2e8f0" }} {...props} />
                 </div>
               ),
-              th: ({node, ...props}) => <th style={{ background: "#f8fafc", border: "1px solid var(--ink)", padding: "10px", fontWeight: 800, textAlign: "left" }} {...props} />,
-              td: ({node, ...props}) => <td style={{ border: "1px solid #cbd5e1", padding: "8px 10px" }} {...props} />,
-              hr: () => <hr style={{ border: "none", borderTop: "2px dashed #cbd5e1", margin: "24px 0" }} />
+              th: ({ node, ...props }) => (
+                <th style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", padding: "12px 14px", fontWeight: 700, fontSize: "13px", color: "#475569", textAlign: "left" }} {...props} />
+              ),
+              td: ({ node, ...props }) => (
+                <td style={{ borderBottom: "1px solid #f1f5f9", padding: "12px 14px", fontSize: "13.5px", color: "#334155" }} {...props} />
+              ),
+              hr: () => <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: "32px 0" }} />
             }}
           >
             {summaryText}
           </ReactMarkdown>
 
-          <div style={{ marginTop: "24px", padding: "14px", background: "#f8fafc", border: "2px solid var(--ink)", borderRadius: "12px", fontSize: "13px" }}>
-            <strong>Analitik Geri Bildirim:</strong> {evaluation.geribildirim}
+          <div style={{ marginTop: "32px", padding: "18px 20px", background: "#f8fafc", borderRadius: "14px", border: "1px solid #e2e8f0", fontSize: "13.5px", color: "#475569", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+            <span style={{ fontSize: "18px" }}>💡</span>
+            <div>
+              <strong style={{ color: "#1e293b" }}>Analitik Değerlendirme:</strong> {evaluation.geribildirim}
+            </div>
           </div>
         </div>
       )}
 
-      {/* 2. FLASHCARD */}
+      {/* 2. FLASHCARD ALANI */}
       {activeTab === "cards" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
           {flashcards.map((card, index) => (
-            <FlashcardItem key={index} index={index + 1} soru={card.soru} cevap={card.cevap} />
+            <ModernFlashcard key={index} index={index + 1} soru={card.soru} cevap={card.cevap} />
           ))}
         </div>
       )}
 
-      {/* 3. QUIZ */}
+      {/* 3. QUIZ ALANI */}
       {activeTab === "quiz" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {quiz.map((q, index) => (
-            <QuizItem 
-              key={index} 
-              index={index + 1} 
-              soru={q.soru} 
-              secenekler={q.secenekler} 
-              dogruIndex={q.dogru_cevap_index} 
+            <ModernQuizCard
+              key={index}
+              index={index + 1}
+              soru={q.soru}
+              secenekler={q.secenekler}
+              dogruIndex={q.dogru_cevap_index}
               aciklama={q.aciklama}
             />
           ))}
         </div>
       )}
 
-      {/* Yeni Dosya Yükle */}
-      <button 
-        onClick={onNewUpload} 
-        style={{ 
-          marginTop: "30px", 
-          width: "100%", 
-          padding: "14px", 
-          background: "#ff6b6b", 
-          color: "#fff", 
-          border: "3px solid var(--ink)", 
-          borderRadius: "14px", 
-          fontWeight: 900,
-          cursor: "pointer",
-          boxShadow: "3px 3px 0px var(--ink)"
-        }}
-      >
-        + Yeni Dosya Yükle
-      </button>
+      {/* Alt Aksiyon Butonu */}
+      <div style={{ marginTop: "40px", textAlign: "center" }}>
+        <button
+          onClick={onNewUpload}
+          style={{
+            background: "#4f46e5",
+            color: "#ffffff",
+            padding: "14px 28px",
+            borderRadius: "12px",
+            border: "none",
+            fontWeight: 700,
+            fontSize: "14px",
+            cursor: "pointer",
+            boxShadow: "0 4px 14px rgba(79, 70, 229, 0.3)",
+            transition: "all 0.2s ease"
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#4338ca")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#4f46e5")}
+        >
+          + Yeni Döküman Analiz Et
+        </button>
+      </div>
     </div>
   );
 }
 
 function TabButton({ active, children, onClick }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       style={{
         flex: 1,
-        padding: "12px 8px",
-        background: active ? "var(--ink)" : "#fff",
-        color: active ? "#fff" : "var(--ink)",
-        border: "3px solid var(--ink)",
-        borderRadius: "12px",
-        fontWeight: 800,
+        padding: "10px 14px",
+        background: active ? "#ffffff" : "transparent",
+        color: active ? "#4f46e5" : "#64748b",
+        border: "none",
+        borderRadius: "10px",
+        fontWeight: active ? 700 : 600,
+        fontSize: "13.5px",
         cursor: "pointer",
-        boxShadow: active ? "none" : "2px 2px 0px var(--ink)",
-        transform: active ? "translate(2px, 2px)" : "none",
-        transition: "all 0.1s ease"
+        boxShadow: active ? "0 2px 8px rgba(0, 0, 0, 0.04)" : "none",
+        transition: "all 0.15s ease"
       }}
     >
       {children}
@@ -174,59 +236,79 @@ function TabButton({ active, children, onClick }) {
   );
 }
 
-function FlashcardItem({ index, soru, cevap }) {
+function ModernFlashcard({ index, soru, cevap }) {
   const [flipped, setFlipped] = useState(false);
 
   return (
-    <div 
+    <div
       onClick={() => setFlipped(!flipped)}
       style={{
-        border: "3px solid var(--ink)",
+        background: flipped ? "#f8fafc" : "#ffffff",
+        border: "1px solid",
+        borderColor: flipped ? "#c7d2fe" : "#e2e8f0",
         borderRadius: "16px",
-        padding: "20px",
-        background: flipped ? "#fef08a" : "#fff",
-        boxShadow: "3px 3px 0px var(--ink)",
+        padding: "24px",
+        minHeight: "150px",
         cursor: "pointer",
-        minHeight: "100px",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
-        transition: "background 0.2s ease"
+        justifyContent: "space-between",
+        boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+        transition: "all 0.2s ease"
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#818cf8")}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = flipped ? "#c7d2fe" : "#e2e8f0")}
     >
-      <div style={{ fontSize: "11px", fontWeight: 800, opacity: 0.6, marginBottom: "8px" }}>
-        KART #{index} {flipped ? "(CEVAP)" : "(SORU - Çevirmek için tıkla)"}
+      <div>
+        <div style={{ fontSize: "11px", fontWeight: 700, color: flipped ? "#4f46e5" : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+          {flipped ? "Cevap" : `Kart #${index}`}
+        </div>
+        <div style={{ fontSize: "14.5px", fontWeight: 600, color: "#1e293b", lineHeight: 1.5 }}>
+          {flipped ? cevap : soru}
+        </div>
       </div>
-      <div style={{ fontSize: "15px", fontWeight: 700 }}>
-        {flipped ? cevap : soru}
+      <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "14px", textAlign: "right" }}>
+        {flipped ? "Soruya dönmek için tıkla" : "Cevabı görmek için tıkla ➔"}
       </div>
     </div>
   );
 }
 
-function QuizItem({ index, soru, secenekler, dogruIndex, aciklama }) {
+function ModernQuizCard({ index, soru, secenekler, dogruIndex, aciklama }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
 
   return (
     <div style={{
-      border: "3px solid var(--ink)",
+      background: "#ffffff",
       borderRadius: "16px",
-      padding: "20px",
-      background: "#fff",
-      boxShadow: "3px 3px 0px var(--ink)"
+      padding: "24px",
+      border: "1px solid #e2e8f0",
+      boxShadow: "0 2px 12px rgba(0,0,0,0.03)"
     }}>
-      <div style={{ fontSize: "14px", fontWeight: 900, marginBottom: "12px" }}>
-        Soru {index}: {soru}
+      <div style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a", marginBottom: "16px" }}>
+        <span style={{ color: "#6366f1", marginRight: "8px" }}>Soru {index}.</span>
+        {soru}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {secenekler && secenekler.map((opt, i) => {
           const isSelected = selectedIndex === i;
           const isCorrect = i === dogruIndex;
-          
-          let bg = "#fff";
+
+          let bg = "#ffffff";
+          let border = "#e2e8f0";
+          let color = "#334155";
+
           if (selectedIndex !== null) {
-            if (isCorrect) bg = "#bbf7d0"; 
-            else if (isSelected) bg = "#fecaca"; 
+            if (isCorrect) {
+              bg = "#f0fdf4";
+              border = "#86efac";
+              color = "#15803d";
+            } else if (isSelected) {
+              bg = "#fef2f2";
+              border = "#fca5a5";
+              color = "#b91c1c";
+            }
           }
 
           return (
@@ -235,13 +317,15 @@ function QuizItem({ index, soru, secenekler, dogruIndex, aciklama }) {
               onClick={() => setSelectedIndex(i)}
               style={{
                 textAlign: "left",
-                padding: "10px 14px",
-                border: "2px solid var(--ink)",
-                borderRadius: "10px",
+                padding: "12px 16px",
+                borderRadius: "12px",
+                border: `1.5px solid ${border}`,
                 background: bg,
-                fontWeight: 700,
+                color: color,
+                fontWeight: 600,
+                fontSize: "14px",
                 cursor: "pointer",
-                fontSize: "13px"
+                transition: "all 0.15s ease"
               }}
             >
               {opt}
@@ -249,9 +333,18 @@ function QuizItem({ index, soru, secenekler, dogruIndex, aciklama }) {
           );
         })}
       </div>
+
       {selectedIndex !== null && aciklama && (
-        <div style={{ fontSize: "12px", background: "#f1f5f9", padding: "10px", borderRadius: "8px", border: "1px solid var(--ink)" }}>
-          <strong>Açıklama:</strong> {aciklama}
+        <div style={{
+          marginTop: "16px",
+          padding: "12px 16px",
+          borderRadius: "10px",
+          background: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          fontSize: "13px",
+          color: "#475569"
+        }}>
+          <strong style={{ color: "#1e293b" }}>Açıklama:</strong> {aciklama}
         </div>
       )}
     </div>
