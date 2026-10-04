@@ -17,11 +17,10 @@ export default function App() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const pollTimeoutRef = useRef(null);
 
-  // 1. Veritabanından (Supabase) ve LocalStorage'dan Geçmişi Çek
+  // Veritabanı (Supabase) ve LocalStorage geçmişini birleştirip getir
   const fetchCombinedHistory = useCallback(async () => {
     setIsLoadingHistory(true);
 
-    // LocalStorage kayıtlarını al
     let localItems = [];
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -32,7 +31,6 @@ export default function App() {
       }
     }
 
-    // Backend (Supabase) kayıtlarını al
     try {
       const res = await fetch(`${API_BASE}/api/history`);
       if (res.ok) {
@@ -57,7 +55,7 @@ export default function App() {
           },
         }));
 
-        // Dosya adı eşleşmesine göre birleştir (Local'deki kart/quiz verisini koru)
+        // Eşleşen dosyaları birleştir (yereldeki quiz/flashcard'ları önceliklendir)
         const combined = [...localItems];
         serverItems.forEach((serverItem) => {
           const exists = combined.some((l) => l.filename === serverItem.filename);
@@ -82,7 +80,6 @@ export default function App() {
     fetchCombinedHistory();
   }, [fetchCombinedHistory]);
 
-  // Yeni sonuç üretildiğinde yerel listeye kaydet
   const saveToHistory = (name, resData) => {
     const newItem = {
       id: Date.now().toString(),
@@ -197,22 +194,14 @@ export default function App() {
   }
 
   return (
-    <div style={{ padding: "20px", maxWidth: "620px", margin: "0 auto", color: "var(--ink)" }}>
-      {/* Üst Başlık */}
-      <div style={{ textAlign: "center", marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "1.6rem", fontWeight: 900, margin: "0 0 8px 0" }}>📚 Kampüs Çalışma Asistanı</h1>
-        <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>
-          PDF notlarını yükle; yapay zeka formülleri koruyarak özetlesin, bilgi kartları ve test soruları üretsin.
-        </p>
-      </div>
-
+    <div style={{ padding: "30px 20px", maxWidth: "680px", margin: "0 auto", color: "var(--ink, #1e293b)" }}>
       {/* Dosya Yükleme Ekranı */}
       <UploadScreen onFileSelected={handleFileSelected} />
 
       {/* Geçmiş Çalışmalar Bölümü */}
-      <div style={{ marginTop: "32px" }}>
+      <div style={{ marginTop: "36px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: 900, margin: 0 }}>⏱️ Geçmiş Çalışmalarım</h3>
+          <h3 style={{ fontSize: "1.15rem", fontWeight: 900, margin: 0 }}>⏱️ Geçmiş Çalışmalarım</h3>
           {history.length > 0 && (
             <button 
               onClick={clearHistory}
@@ -232,8 +221,8 @@ export default function App() {
         {!isLoadingHistory && history.length === 0 && (
           <div style={{
             border: "2px dashed #cbd5e1",
-            borderRadius: "12px",
-            padding: "20px",
+            borderRadius: "14px",
+            padding: "24px",
             textAlign: "center",
             fontSize: "13px",
             color: "#64748b",
@@ -243,39 +232,39 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {history.map((item) => (
             <div
               key={item.id}
               onClick={() => handleSelectHistoryItem(item)}
               style={{
-                border: "2.5px solid var(--ink)",
+                border: "2.5px solid var(--ink, #1e293b)",
                 borderRadius: "14px",
-                padding: "14px 18px",
+                padding: "16px 20px",
                 background: "#fff",
-                boxShadow: "3px 3px 0px var(--ink)",
+                boxShadow: "4px 4px 0px var(--ink, #1e293b)",
                 cursor: "pointer",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 transition: "all 0.15s ease"
               }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = "translate(-2px, -2px)"}
-              onMouseLeave={(e) => e.currentTarget.style.transform = "none"}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "translate(-2px, -2px)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
             >
               <div style={{ overflow: "hidden", paddingRight: "12px" }}>
                 <div style={{ fontWeight: 800, fontSize: "14px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                   {item.filename}
                 </div>
-                <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "3px" }}>
+                <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "4px" }}>
                   {item.date}
                 </div>
               </div>
               <div style={{
                 background: "#fef08a",
-                border: "2px solid var(--ink)",
-                padding: "4px 10px",
-                borderRadius: "8px",
+                border: "2px solid var(--ink, #1e293b)",
+                padding: "6px 12px",
+                borderRadius: "10px",
                 fontSize: "12px",
                 fontWeight: 900,
                 flexShrink: 0
