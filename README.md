@@ -1,92 +1,144 @@
-<<<<<<< HEAD
-# Ders Notu Asistanı
+```markdown
+<div align="center">
 
-Ders notu (PDF/DOCX/PPTX/görsel) yükle → özet, flashcard ve quiz üret.
+# 📚 Kampüs Çalışma Asistanı
+### Akademik Notlardan Dakikalar İçinde Sınav Materyali Üreten AI SaaS
 
-## Kurulum (local test)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Groq](https://img.shields.io/badge/Groq_API-Qwen_27B-f97316?style=for-the-badge)](https://groq.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![KaTeX](https://img.shields.io/badge/KaTeX-LaTeX_Render-00d084?style=for-the-badge)](https://katex.org/)
+
+<p align="center">
+  <b>PDF ve akademik ders notlarını işleyerek yapılandırılmış özetler, formülleri koruyan çalışma kartları (flashcards) ve seviye tespit testleri (quiz) üreten tam yığın (full-stack) yapay zeka uygulaması.</b>
+</p>
+
+</div>
+
+---
+
+## ⚡ Temel Özellikler
+
+- **LaTeX & Formül Hassasiyeti:** Akademik dokümanlardaki matematiksel, istatistiksel ve teknik formülleri bozmadan KaTeX standardında render eder.
+- **Akıllı Çıkarım & Değerlendirme:** Yüklenen ders notunu derinlemesine analiz eder; pedagojik bir kalite skoru ve geribildirim sunar.
+- **İnteraktif Sınav Modu:** Çoktan seçmeli testler, anlık geri bildirim ve ayrıntılı çözüm açıklamalarıyla aktif öğrenmeyi destekler.
+- **Çift Yönlü Bilgi Kartları (Flashcards):** Ezber ve terim pekiştirmesi için optimize edilmiş, çevrilebilir kart mekanizması.
+- **Kalıcı Kütüphane & Geçmiş:** Oturum sonuçlarını Supabase ve yerel depolama senkronizasyonuyla saklar; eski dökümanlara tek tıkla erişim sağlar.
+- **Modern Dark Glassmorphism UI:** Aurora ambient glow efektleri, mikromimari animasyonlar ve modern SaaS estetiği.
+
+---
+
+## 🛠️ Teknoloji Yığını
+
+### Backend
+- **Framework:** FastAPI (Python 3.10+)
+- **LLM Entegrasyonu:** Groq Cloud API (`qwen/qwen3.8-27b`)
+- **Validasyon & Güvenlik:** Pydantic V2, defansif JSON sanitizasyonu ve retry mekanizmaları
+- **Veritabanı:** Supabase (PostgreSQL)
+
+### Frontend
+- **Kütüphane:** React (Vite)
+- **Matematik & Notasyon:** `remark-math`, `rehype-katex`, `KaTeX`
+- **İçerik Render:** `react-markdown`, `remark-gfm`
+- **Tasarım:** Custom CSS Glassmorphism, Dark Neon Aurora UI
+
+---
+
+## 🏗️ Sistem Mimarisi
+
+```text
+[Kullanıcı PDF Yükler]
+        │
+        ▼
+[FastAPI Backend] ── (Metin Çıkarma & Chunking)
+        │
+        ▼
+[Groq API (Qwen 27B)] ── (Yapılandırılmış JSON & Markdown Üretimi)
+        │
+        ▼
+[Pydantic Validasyonu] ── (Hata/Bozuk JSON Ayıklama)
+        │
+   ┌────┴────────────────────────┐
+   ▼                             ▼
+[Supabase Kaydı]        [React Frontend (KaTeX + UI)]
+
+```
+
+---
+
+## 🚀 Hızlı Başlangıç
+
+### 1. Gereksinimler
+
+* Python 3.10+
+* Node.js 18+
+* Groq API Anahtarı
+* Supabase Proje Bilgileri
+
+### 2. Backend Kurulumu
 
 ```bash
+# Backend dizinine geçin
 cd backend
-python3 -m venv venv
-source venv/bin/activate       # Windows: venv\Scripts\activate
+
+# Sanal ortam oluşturup aktifleştirin
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+# Bağımlılıkları yükleyin
 pip install -r requirements.txt
 
+# Çevre değişkenlerini ayarlayın (.env)
 cp .env.example .env
-# .env dosyasını açıp GEMINI_API_KEY'ini gir (aistudio.google.com/apikey)
+
 ```
 
-```bash
-cd frontend-react
-npm install
+`.env` dosyanızı yapılandırın:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_key
+
 ```
 
-## Çalıştırma
+Sunucuyu başlatın:
 
-**Backend:**
 ```bash
-cd backend
 uvicorn main:app --reload --port 8000
-```
-API dokümantasyonu: http://localhost:8000/docs
 
-**Frontend (React):**
+```
+
+### 3. Frontend Kurulumu
+
 ```bash
+# Frontend dizinine geçin
 cd frontend-react
+
+# Paketleri yükleyin
+npm install
+
+# .env yapılandırması
+VITE_API_BASE=http://localhost:8000
+
+# Geliştirme sunucusunu başlatın
 npm run dev
-```
-Tarayıcıda http://localhost:3000 açılır.
-
-**Eski test arayüzü:** `frontend/index.html` hâlâ duruyor (build gerektirmeyen hızlı test için), ama artık asıl arayüz `frontend-react`.
-
-## Proje Yapısı
-
-```
-backend/
-  extractors/       # Dosya formatı -> ham metin (PDF, DOCX, PPTX, görsel)
-  services/
-    llm_service.py  # Gemini API ile özet/flashcard/quiz üretimi
-    job_store.py    # İş takibi (şu an in-memory, sonra DB'ye taşınacak)
-  routers/
-    documents.py    # /api/upload, /api/status, /api/result
-  models/schemas.py # Pydantic veri modelleri
-  main.py           # FastAPI giriş noktası
-frontend-react/
-  src/
-    App.jsx             # Ana state makinesi (idle/processing/error/done)
-    UploadScreen.jsx    # Dosya yükleme (sürükle-bırak)
-    ProcessingScreen.jsx
-    ErrorScreen.jsx
-    ResultsScreen.jsx   # Sekmeli sonuç görünümü
-    FlashcardDeck.jsx   # Çevrilebilir kart bileşeni
-    QuizList.jsx        # Seçenekli quiz + skor
-    index.css           # Kampüs Enerjisi renk paleti / tema
-frontend/
-  index.html        # Eski build-gerektirmeyen test arayüzü
 
 ```
 
-## Yeni bir dosya formatı eklemek
+---
 
-1. `extractors/xyz_extractor.py` dosyasında `extract(path) -> ExtractionResult` yaz
-2. `extractors/registry.py` içine uzantıyı ekle
+## 🗺️ Gelecek Yol Haritası
 
-Bu kadar — LLM katmanı hiçbir extractor detayı bilmediği için başka bir şey
-değiştirmene gerek yok.
+* [ ] Flashcard'ları Anki (`.tsv` / `.txt`) formatında dışa aktarma
+* [ ] Ders özetini biçimli PDF/Markdown olarak indirme
+* [ ] Doküman odaklı interaktif AI sohbet paneli (Chat with PDF)
+* [ ] Supabase Auth ile kullanıcı bazlı oturum yönetimi
 
-## Sırada ne var (Faz 2)
+```
 
-- [ ] Kullanıcı hesapları / auth (Supabase Auth önerilir)
-- [ ] SQLite → Postgres geçişi
-- [ ] Ödeme entegrasyonu (Stripe)
-- [ ] React frontend (bu test HTML'inin yerini alacak)
-- [ ] Ses kaydı desteği (Whisper API)
-- [ ] Spaced repetition / ilerleme takibi
-
-## Notlar
-
-- Şu an job'lar in-memory tutuluyor — backend restart olunca kaybolur (local test için sorun değil).
-- Dosya boyutu sınırı: 25MB (main.py / documents.py içinde değiştirilebilir).
-- Uzun belgeler (60K+ karakter) otomatik olarak map-reduce ile özetlenip sonra materyal üretiliyor.
-=======
-# dersnotuasistani
->>>>>>> 60cfb2ec354a2bbac14da1d58a52a152acdbd69a
+```
