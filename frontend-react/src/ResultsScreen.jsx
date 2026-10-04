@@ -1,16 +1,28 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+// Metindeki kaçış karakterlerini ve yapay başlıkları temizleyen filtre
+function formatMarkdownText(rawText) {
+  if (!rawText) return "";
+  return rawText
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/^##\s*Bölüm\s*\d+\s*/gim, "")
+    .trim();
+}
 
 export default function ResultsScreen({ filename, result, onNewUpload }) {
   const [activeTab, setActiveTab] = useState("summary"); // summary | cards | quiz
 
   const evaluation = result.ogreticilik_degerlendirmesi || { skor: 95, geribildirim: "Harika materyal!" };
-  const summaryText = result.ozet_markdown || "Özet bulunamadı.";
+  const rawSummary = result.ozet_markdown || "Özet bulunamadı.";
+  const summaryText = formatMarkdownText(rawSummary);
   const flashcards = result.flashcards || [];
   const quiz = result.quiz || [];
 
   return (
-    <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto", color: "var(--ink)" }}>
+    <div style={{ padding: "20px", maxWidth: "680px", margin: "0 auto", color: "var(--ink)" }}>
       
       {/* Başlık ve Skor Kartı */}
       <div style={{ 
@@ -50,15 +62,47 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
 
       {/* 1. ÖZET SEKMESİ */}
       {activeTab === "summary" && (
-        <div style={{ border: "3px solid var(--ink)", borderRadius: 20, padding: "24px", background: "#fff", boxShadow: "4px 4px 0px var(--ink)" }}>
-          <ReactMarkdown>{summaryText}</ReactMarkdown>
-          <div style={{ marginTop: "20px", padding: "12px", background: "#f8fafc", border: "2px solid var(--ink)", borderRadius: "10px", fontSize: "13px" }}>
-            <strong>Analitik Geri Bildirim:</strong> {evaluation.geribildirim}
+        <div style={{ 
+          border: "3px solid var(--ink)", 
+          borderRadius: 20, 
+          padding: "24px", 
+          background: "#fff", 
+          boxShadow: "4px 4px 0px var(--ink)",
+          lineHeight: 1.6
+        }}>
+          <div className="markdown-body">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h2: ({node, ...props}) => <h2 style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "24px", marginBottom: "12px", borderBottom: "2px solid #e2e8f0", paddingBottom: "6px" }} {...props} />,
+                h3: ({node, ...props}) => <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginTop: "18px", marginBottom: "8px" }} {...props} />,
+                p: ({node, ...props}) => <p style={{ marginBottom: "12px", fontSize: "14.5px" }} {...props} />,
+                ul: ({node, ...props}) => <ul style={{ paddingLeft: "20px", marginBottom: "14px" }} {...props} />,
+                li: ({node, ...props}) => <li style={{ marginBottom: "6px", fontSize: "14px" }} {...props} />,
+                code: ({node, inline, ...props}) => inline 
+                  ? <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", fontSize: "13px", fontFamily: "monospace" }} {...props} />
+                  : <pre style={{ background: "#0f172a", color: "#f8fafc", padding: "14px", borderRadius: "10px", overflowX: "auto", fontSize: "13px", marginBottom: "14px" }}><code {...props} /></pre>,
+                table: ({node, ...props}) => (
+                  <div style={{ overflowX: "auto", marginBottom: "16px" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", border: "1px solid #cbd5e1" }} {...props} />
+                  </div>
+                ),
+                th: ({node, ...props}) => <th style={{ background: "#f8fafc", border: "1px solid #cbd5e1", padding: "8px 12px", fontWeight: 700, textAlign: "left" }} {...props} />,
+                td: ({node, ...props}) => <td style={{ border: "1px solid #cbd5e1", padding: "8px 12px" }} {...props} />,
+                hr: () => <hr style={{ border: "none", borderTop: "2px dashed #cbd5e1", margin: "24px 0" }} />
+              }}
+            >
+              {summaryText}
+            </ReactMarkdown>
+          </div>
+
+          <div style={{ marginTop: "24px", padding: "14px", background: "#f8fafc", border: "2px solid var(--ink)", borderRadius: "12px", fontSize: "13px" }}>
+            <strong>Analitik Geri Bildirim:</strong> {formatMarkdownText(evaluation.geribildirim)}
           </div>
         </div>
       )}
 
-      {/* 2. FLASHCARD SEKMESİ (Şemadaki 'soru' ve 'cevap' alanlarına göre ayarlandı) */}
+      {/* 2. FLASHCARD SEKMESİ */}
       {activeTab === "cards" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           {flashcards.map((card, index) => (
@@ -67,7 +111,7 @@ export default function ResultsScreen({ filename, result, onNewUpload }) {
         </div>
       )}
 
-      {/* 3. QUIZ SEKMESİ (Şemadaki 'secenekler' ve 'dogru_cevap_index' alanlarına göre ayarlandı) */}
+      {/* 3. QUIZ SEKMESİ */}
       {activeTab === "quiz" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {quiz.map((q, index) => (
@@ -179,8 +223,8 @@ function QuizItem({ index, soru, secenekler, dogruIndex, aciklama }) {
           
           let bg = "#fff";
           if (selectedIndex !== null) {
-            if (isCorrect) bg = "#bbf7d0"; // Doğru şık yeşil
-            else if (isSelected) bg = "#fecaca"; // Yanlış seçilen kırmızı
+            if (isCorrect) bg = "#bbf7d0"; 
+            else if (isSelected) bg = "#fecaca"; 
           }
 
           return (
