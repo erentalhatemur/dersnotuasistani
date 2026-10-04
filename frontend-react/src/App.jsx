@@ -163,7 +163,7 @@ export default function App() {
   };
 
   const clearHistory = () => {
-    if (window.confirm("Geçmiş çalışma kayıtlarını temizlemek istiyor musun?")) {
+    if (window.confirm("Geçmiş kayıtları silmek istiyor musunuz?")) {
       setHistory([]);
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -178,27 +178,38 @@ export default function App() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 119, 198, 0.15), rgba(255, 255, 255, 0)), #fafafa",
-      backgroundImage: `
-        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-        radial-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px)
-      `,
-      backgroundSize: "100% 100%, 24px 24px",
-      padding: "48px 20px 80px 20px",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      color: "#0f172a"
+      background: "#090a0f",
+      position: "relative",
+      overflow: "hidden",
+      fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+      color: "#f8fafc",
+      padding: "50px 20px 100px"
     }}>
-      <div style={{ maxWidth: "700px", margin: "0 auto" }}>
+      {/* Aurora Ambient Glow Orbs */}
+      <div style={{
+        position: "absolute",
+        top: "-15%",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "700px",
+        height: "450px",
+        background: "radial-gradient(circle, rgba(139, 92, 246, 0.22) 0%, rgba(236, 72, 153, 0.12) 40%, transparent 70%)",
+        filter: "blur(90px)",
+        pointerEvents: "none",
+        zIndex: 0
+      }} />
+
+      <div style={{ maxWidth: "680px", margin: "0 auto", position: "relative", zIndex: 1 }}>
         
         {/* Upload Alanı */}
         <UploadScreen onFileSelected={handleFileSelected} />
 
-        {/* Geçmiş Çalışmalar */}
-        <div style={{ marginTop: "44px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+        {/* Kütüphane / Geçmiş Bölümü */}
+        <div style={{ marginTop: "48px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "14px" }}>📂</span>
-              <h3 style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#a855f7", boxShadow: "0 0 10px #a855f7" }} />
+              <h3 style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.12em", margin: 0 }}>
                 Kütüphanem & Geçmiş
               </h3>
             </div>
@@ -208,14 +219,14 @@ export default function App() {
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "#94a3b8",
+                  color: "#64748b",
                   fontWeight: 600,
                   fontSize: "12px",
                   cursor: "pointer",
                   transition: "color 0.2s"
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#94a3b8")}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#f43f5e")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#64748b")}
               >
                 Temizle
               </button>
@@ -223,23 +234,22 @@ export default function App() {
           </div>
 
           {isLoadingHistory && (
-            <div style={{ textAlign: "center", fontSize: "13px", color: "#94a3b8", padding: "24px" }}>
-              Kayıtlar taranıyor...
+            <div style={{ textAlign: "center", fontSize: "13px", color: "#64748b", padding: "20px" }}>
+              Arşiv taranıyor...
             </div>
           )}
 
           {!isLoadingHistory && history.length === 0 && (
             <div style={{
-              border: "1px dashed rgba(203, 213, 225, 0.8)",
-              borderRadius: "16px",
-              padding: "32px",
+              background: "rgba(255, 255, 255, 0.02)",
+              border: "1px dashed rgba(255, 255, 255, 0.08)",
+              borderRadius: "18px",
+              padding: "36px",
               textAlign: "center",
-              fontSize: "13.5px",
-              color: "#94a3b8",
-              background: "rgba(255, 255, 255, 0.6)",
-              backdropFilter: "blur(6px)"
+              fontSize: "13px",
+              color: "#64748b"
             }}>
-              Henüz kaydedilmiş çalışma notu yok. İlk notunu yukarıdan yükle!
+              Henüz kayıtlı bir çalışma notu bulunmuyor.
             </div>
           )}
 
@@ -249,34 +259,36 @@ export default function App() {
                 key={item.id}
                 onClick={() => handleSelectHistoryItem(item)}
                 style={{
-                  background: "rgba(255, 255, 255, 0.85)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(226, 232, 240, 0.8)",
+                  background: "rgba(255, 255, 255, 0.03)",
+                  backdropFilter: "blur(16px)",
+                  WebkitBackdropFilter: "blur(16px)",
+                  border: "1px solid rgba(255, 255, 255, 0.07)",
                   borderRadius: "16px",
                   padding: "16px 20px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 6px 16px -4px rgba(0,0,0,0.03)",
                   cursor: "pointer",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)"
+                  transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
                 }}
                 onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.06)";
+                  e.currentTarget.style.borderColor = "rgba(168, 85, 247, 0.4)";
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.borderColor = "#c7d2fe";
-                  e.currentTarget.style.boxShadow = "0 12px 24px -6px rgba(99, 102, 241, 0.08)";
+                  e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(168, 85, 247, 0.15)";
                 }}
                 onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.07)";
                   e.currentTarget.style.transform = "none";
-                  e.currentTarget.style.borderColor = "rgba(226, 232, 240, 0.8)";
-                  e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02), 0 6px 16px -4px rgba(0,0,0,0.03)";
+                  e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                <div style={{ overflow: "hidden", paddingRight: "16px" }}>
-                  <div style={{ fontWeight: 600, fontSize: "14.5px", color: "#1e293b", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                <div style={{ overflow: "hidden", paddingRight: "14px" }}>
+                  <div style={{ fontWeight: 600, fontSize: "14px", color: "#f8fafc", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                     {item.filename}
                   </div>
-                  <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
+                  <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>
                     {item.date}
                   </div>
                 </div>
@@ -284,21 +296,22 @@ export default function App() {
                 <div style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  gap: "10px",
                   flexShrink: 0
                 }}>
                   <div style={{
-                    background: "rgba(99, 102, 241, 0.08)",
-                    color: "#4f46e5",
-                    padding: "6px 12px",
+                    background: "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%)",
+                    border: "1px solid rgba(168, 85, 247, 0.3)",
+                    color: "#e879f9",
+                    padding: "5px 12px",
                     borderRadius: "20px",
-                    fontSize: "12px",
+                    fontSize: "11px",
                     fontWeight: 700,
-                    letterSpacing: "-0.01em"
+                    letterSpacing: "0.04em"
                   }}>
-                    {item.result?.ogreticilik_degerlendirmesi?.skor ? `${item.result.ogreticilik_degerlendirmesi.skor} Puan` : "Görüntüle"}
+                    {item.result?.ogreticilik_degerlendirmesi?.skor ? `${item.result.ogreticilik_degerlendirmesi.skor} Puan` : "İncele"}
                   </div>
-                  <span style={{ color: "#cbd5e1", fontSize: "14px" }}>➔</span>
+                  <span style={{ color: "#475569", fontSize: "13px" }}>➔</span>
                 </div>
               </div>
             ))}
