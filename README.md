@@ -1,144 +1,115 @@
-```markdown
-<div align="center">
-
 # 📚 Kampüs Çalışma Asistanı
-### Akademik Notlardan Dakikalar İçinde Sınav Materyali Üreten AI SaaS
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Groq](https://img.shields.io/badge/Groq_API-Qwen_27B-f97316?style=for-the-badge)](https://groq.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
-[![KaTeX](https://img.shields.io/badge/KaTeX-LaTeX_Render-00d084?style=for-the-badge)](https://katex.org/)
-
-<p align="center">
-  <b>PDF ve akademik ders notlarını işleyerek yapılandırılmış özetler, formülleri koruyan çalışma kartları (flashcards) ve seviye tespit testleri (quiz) üreten tam yığın (full-stack) yapay zeka uygulaması.</b>
-</p>
-
-</div>
+Akademik ders notlarını (PDF) derinlemesine analiz ederek formülleri koruyan özetler, interaktif bilgi kartları (flashcards) ve seviye tespit testleri (quiz) üreten tam yığın yapay zeka çalışma ortamı.
 
 ---
 
 ## ⚡ Temel Özellikler
 
-- **LaTeX & Formül Hassasiyeti:** Akademik dokümanlardaki matematiksel, istatistiksel ve teknik formülleri bozmadan KaTeX standardında render eder.
-- **Akıllı Çıkarım & Değerlendirme:** Yüklenen ders notunu derinlemesine analiz eder; pedagojik bir kalite skoru ve geribildirim sunar.
-- **İnteraktif Sınav Modu:** Çoktan seçmeli testler, anlık geri bildirim ve ayrıntılı çözüm açıklamalarıyla aktif öğrenmeyi destekler.
-- **Çift Yönlü Bilgi Kartları (Flashcards):** Ezber ve terim pekiştirmesi için optimize edilmiş, çevrilebilir kart mekanizması.
-- **Kalıcı Kütüphane & Geçmiş:** Oturum sonuçlarını Supabase ve yerel depolama senkronizasyonuyla saklar; eski dökümanlara tek tıkla erişim sağlar.
-- **Modern Dark Glassmorphism UI:** Aurora ambient glow efektleri, mikromimari animasyonlar ve modern SaaS estetiği.
+* **LaTeX & Formül Bütünlüğü:** Matematiksel ve istatistiksel modelleri KaTeX standartlarında kusursuz render eder.
+* **Akıllı Analiz & Kalite Skoru:** Dökümanın öğreticilik seviyesini ölçer, pedagojik kalite skoru ve geribildirim sağlar.
+* **İnteraktif Sınav Modu:** Çoktan seçmeli testler, anlık geri bildirim ve detaylı çözüm açıklamaları sunar.
+* **Çift Yönlü Bilgi Kartları:** Ezber ve aktif hatırlama (active recall) için optimize edilmiş çevrilebilir kart mekanizması.
+* **Kalıcı Kütüphane & Geçmiş:** Oturum sonuçlarını Supabase ve yerel depolama hibrit mimarisiyle saklar.
+* **Modern Dark Glassmorphism:** Derin zemin, neon ışıltılar ve akıcı mikro animasyonlar.
 
 ---
 
 ## 🛠️ Teknoloji Yığını
 
-### Backend
-- **Framework:** FastAPI (Python 3.10+)
-- **LLM Entegrasyonu:** Groq Cloud API (`qwen/qwen3.8-27b`)
-- **Validasyon & Güvenlik:** Pydantic V2, defansif JSON sanitizasyonu ve retry mekanizmaları
-- **Veritabanı:** Supabase (PostgreSQL)
-
-### Frontend
-- **Kütüphane:** React (Vite)
-- **Matematik & Notasyon:** `remark-math`, `rehype-katex`, `KaTeX`
-- **İçerik Render:** `react-markdown`, `remark-gfm`
-- **Tasarım:** Custom CSS Glassmorphism, Dark Neon Aurora UI
+* **Backend:** FastAPI (Python 3.10+)
+* **LLM:** Groq Cloud API (Qwen 27B)
+* **Validasyon:** Pydantic V2
+* **Veritabanı:** Supabase (PostgreSQL)
+* **Frontend:** React + Vite
+* **Matematik & Render:** KaTeX, remark-math, rehype-katex, react-markdown
 
 ---
 
-## 🏗️ Sistem Mimarisi
+## 🏗️️ Sistem Mimarisi
 
 ```text
-[Kullanıcı PDF Yükler]
-        │
-        ▼
-[FastAPI Backend] ── (Metin Çıkarma & Chunking)
-        │
-        ▼
-[Groq API (Qwen 27B)] ── (Yapılandırılmış JSON & Markdown Üretimi)
-        │
-        ▼
-[Pydantic Validasyonu] ── (Hata/Bozuk JSON Ayıklama)
-        │
-   ┌────┴────────────────────────┐
-   ▼                             ▼
-[Supabase Kaydı]        [React Frontend (KaTeX + UI)]
+[PDF Yükleme] ──> [FastAPI Backend] ──> [Groq Qwen 27B] ──> [Pydantic Doğrulama]
+                                                                  │
+                                      ┌───────────────────────────┴───────────────────────────┐
+                                      ▼                                                       ▼
+                            [Supabase Arşivi]                                      [React İstemci UI]
 
 ```
 
 ---
 
-## 🚀 Hızlı Başlangıç
+## 📁 Proje Dizin Yapısı
 
-### 1. Gereksinimler
+* `backend/`
+* `main.py` - FastAPI yönlendiricileri ve polling uç noktaları
+* `requirements.txt` - Python kütüphaneleri
+* `services/`
+* `ai_service.py` - Groq API istemcisi ve Pydantic modelleri
+* `database.py` - Supabase veri tabanı bağlantısı
+* `pdf_service.py` - PDF metin ayıklama fonksiyonları
 
-* Python 3.10+
-* Node.js 18+
-* Groq API Anahtarı
-* Supabase Proje Bilgileri
 
-### 2. Backend Kurulumu
+
+
+* `frontend-react/`
+* `package.json` - Node bağımlılıkları
+* `src/`
+* `App.jsx` - Ana durum ve kütüphane geçmiş yönetimi
+* `UploadScreen.jsx` - Dosya yükleme ve sürükle-bırak alanı
+* `ResultsScreen.jsx` - Özet, flashcard ve test sekmeleri
+
+
+
+
+
+---
+
+## 🚀 Kurulum ve Çalıştırma
+
+### 1. Backend Kurulumu
 
 ```bash
-# Backend dizinine geçin
 cd backend
-
-# Sanal ortam oluşturup aktifleştirin
 python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/macOS:
-source venv/bin/activate
-
-# Bağımlılıkları yükleyin
-pip install -r requirements.txt
-
-# Çevre değişkenlerini ayarlayın (.env)
-cp .env.example .env
 
 ```
 
-`.env` dosyanızı yapılandırın:
+Sanal ortamı aktifleştirin:
 
-```env
-GROQ_API_KEY=your_groq_api_key
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_KEY=your_supabase_anon_key
+* Windows: `venv\Scripts\activate`
+* macOS/Linux: `source venv/bin/activate`
 
-```
-
-Sunucuyu başlatın:
+Bağımlılıkları yükleyin ve sunucuyu başlatın:
 
 ```bash
+pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 
 ```
 
-### 3. Frontend Kurulumu
+> `backend/.env` dosyası oluşturup `GROQ_API_KEY`, `SUPABASE_URL` ve `SUPABASE_KEY` değerlerini tanımlayın.
+
+### 2. Frontend Kurulumu
 
 ```bash
-# Frontend dizinine geçin
 cd frontend-react
-
-# Paketleri yükleyin
 npm install
-
-# .env yapılandırması
-VITE_API_BASE=http://localhost:8000
-
-# Geliştirme sunucusunu başlatın
 npm run dev
 
 ```
 
+> Tarayıcıda `http://localhost:5173` adresine giderek uygulamayı kullanabilirsiniz.
+
 ---
 
-## 🗺️ Gelecek Yol Haritası
+## 🗺️️ Geliştirme Yol Haritası
 
-* [ ] Flashcard'ları Anki (`.tsv` / `.txt`) formatında dışa aktarma
-* [ ] Ders özetini biçimli PDF/Markdown olarak indirme
-* [ ] Doküman odaklı interaktif AI sohbet paneli (Chat with PDF)
-* [ ] Supabase Auth ile kullanıcı bazlı oturum yönetimi
-
-```
-
-```
+* [x] Temel MVP ve PDF ayrıştırma akışı
+* [x] Groq Qwen-27B yapılandırılmış JSON çıktısı ve KaTeX render
+* [x] Dark Neon Glassmorphism arayüzü
+* [x] Supabase hibrit geçmiş entegrasyonu
+* [ ] Bilgi kartlarını Anki (.tsv / .txt) formatında dışa aktarma
+* [ ] Ders özetini biçimli PDF ve Markdown (.md) olarak indirme
+* [ ] Dökümana özel interaktif yapay zeka sohbeti (Chat with PDF)
+* [ ] Quiz sonuç analiz ekranı ve başarı metrikleri
