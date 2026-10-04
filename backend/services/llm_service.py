@@ -2,7 +2,7 @@ import os
 import time
 import logging
 import re
-from groq import Groq
+from groq import Groq, RateLimitError
 from models.schemas import GenerationResult
 from services.database import save_study_session
 
@@ -15,20 +15,18 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-CHUNK_CHAR_LIMIT = 3500  # ~850 token, 8000 TPM limitini zorlamaz
+CHUNK_CHAR_LIMIT = 2800  
 
 def clean_escaped_text(text: str) -> str:
-    """JSON içinden gelen çift kaçış karakterlerini (\n, \t) gerçek karakterlere çevirir."""
+    """JSON içinden gelen kaçış karakterlerini (\n, \t) gerçek satır sonuna çevirir."""
     if not text:
         return ""
-    # Çift ters bölüleri gerçek yeni satıra çevir
     cleaned = text.replace("\\n", "\n").replace("\\t", "\t")
-    # Yapay olarak eklenmiş parça başlıklarını temizle
     cleaned = re.sub(r"^##\s*Bölüm\s*\d+\s*", "", cleaned, flags=re.MULTILINE)
     return cleaned.strip()
 
 def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> list[str]:
-    """Metni satır sonu olmasa dahi kelime bütünlüğünü koruyarak güvenli parçalara böler."""
+    """Metni kelime bütünlüğünü koruyarak güvenli parçalara böler."""
     if len(text) <= chunk_size:
         return [text]
     
@@ -47,42 +45,60 @@ def split_text_into_chunks(text: str, chunk_size: int = CHUNK_CHAR_LIMIT) -> lis
         
     return chunks if chunks else [text]
 
-def process_chunk(chunk_text: str, chunk_index: int, total_chunks: int, model_name: str) -> GenerationResult:
+def process_chunk_with_retry(chunk_text: str, chunk_index: int, total_chunks: int, model_name: str, max_retries: int = 4) -> GenerationResult:
     prompt = f"""
-    Sen uzman bir akademik asistansın. Görevin, aşağıda verilen ders notu bölümünü kullanarak 
-    öğrencilerin konuyu derinlemesine öğrenmesini sağlayacak çalışma materyalleri oluşturmaktır.
-    
-    Bu metin bir belgenin {chunk_index}/{total_chunks}. bölümüdür.
+    Sen uzman bir akademik asistansın. Görevin verilen ders notu bölümünden çalışma materyalleri üretmektir.
+    Bu metin belgenin {chunk_index}/{total_chunks}. bölümüdür.
 
-    LÜTFEN KURALLARA UY:
-    1. ÖZET: Bu bölümdeki kritik noktaları içeren alt başlıklı (Markdown ## ve ###) detaylı bir özet çıkar. Asla 'Bölüm 1' gibi yapay başlıklar atma, konunun gerçek başlığını kullan.
-    2. FLASHCARD: Bu bölümün kritik kavramlarını sorgulayan en az 4-6 adet bilgi kartı (flashcard) üret.
-    3. QUIZ: Bu bölümdeki kavramları ölçen analitik 3-4 adet çoktan seçmeli soru hazırla.
-    4. ÖĞRETİCİLİK SKORU: Bu bölümün kapsayıcılığını 0-100 arası puanla ve kısa bir geribildirim sun.
+    JSON KURALLARI (ÇOK ÖNEMLİ):
+    - Metin değerleri içinde KESİNLİKLE çift tırnak (") karakteri kullanma. Formül, kod veya vurguları tek tırnak (') ya da ters tırnak (`) içine al.
+    - Çıktı kesinlikle hatasız ve geçerli bir JSON objesi olmalıdır.
 
-    LÜTFEN ÇIKTIYI KESİNLİKLE GEÇERLİ BİR JSON FORMATINDA VER. Başka açıklama metni ekleme.
-    Şema şu yapıya uygun olmalıdır (GenerationResult):
+    İÇERİK KURALLARI:
+    1. ÖZET: Bu bölümdeki kritik noktaları içeren alt başlıklı (Markdown ## ve ###) detaylı bir özet çıkar. Yapay 'Bölüm 1' gibi başlıklar atma.
+    2. FLASHCARD: Bu bölümün kritik kavramlarını sorgulayan en az 3-5 adet bilgi kartı üret (soru ve cevap).
+    3. QUIZ: Bu bölümdeki kavramları ölçen 2-3 adet çoktan seçmeli soru hazırla (soru, secenekler, dogru_cevap_index, aciklama).
+    4. ÖĞRETİCİLİK SKORU: 0-100 arası skor ve kısa geribildirim sun.
+
+    Şema yapısı (GenerationResult):
     {GenerationResult.model_json_schema()}
 
     KAYNAK METİN:
     {chunk_text}
     """
 
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": "Sen JSON formatında çıktı veren uzman bir eğitim asistanısın."},
-            {"role": "user", "content": prompt}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.3,
-    )
-    
-    return GenerationResult.model_validate_json(response.choices[0].message.content)
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "Sen geçerli JSON üreten bir eğitim asistanısın. Çıktı alanları içinde asla çift tırnak kullanma."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.2,
+            )
+            return GenerationResult.model_validate_json(response.choices[0].message.content)
+
+        except RateLimitError:
+            wait_time = (attempt + 1) * 3
+            logger.warning(f"Limit koruması: {wait_time}s bekleniyor...")
+            time.sleep(wait_time)
+        except Exception as e:
+            if "429" in str(e):
+                time.sleep((attempt + 1) * 3)
+            elif "json_validate_failed" in str(e) or "400" in str(e):
+                logger.warning(f"JSON format hatası, yeniden deneniyor ({attempt + 1}/{max_retries})...")
+                time.sleep(1)
+            else:
+                raise e
+
+    raise RuntimeError(f"Parça {chunk_index} işlenemedi. Lütfen tekrar deneyin.")
 
 def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dosya", *args, **kwargs) -> GenerationResult:
     try:
-        model_name = 'openai/gpt-oss-20b'
+        # JSON formatına en sadık ve kotası rahat model
+        model_name = 'qwen/qwen3.8-27b'
 
         text_content = (
             document_text.text
@@ -92,10 +108,10 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
 
         chunks = split_text_into_chunks(text_content)
         total_chunks = len(chunks)
-        logger.info(f"Belge analiz edildi: Toplam {len(text_content)} karakter, {total_chunks} parçaya bölündü.")
+        logger.info(f"Belge analiz ediliyor: {total_chunks} parça.")
 
         if total_chunks == 1:
-            raw_result = process_chunk(chunks[0], 1, 1, model_name)
+            raw_result = process_chunk_with_retry(chunks[0], 1, 1, model_name)
             res_dict = raw_result.model_dump()
             res_dict["ozet_markdown"] = clean_escaped_text(res_dict.get("ozet_markdown", ""))
             result = GenerationResult.model_validate(res_dict)
@@ -108,12 +124,10 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
             last_score_obj = {}
 
             for i, chunk in enumerate(chunks, start=1):
-                logger.info(f"Parça {i}/{total_chunks} Groq API'ye gönderiliyor...")
-                chunk_result = process_chunk(chunk, i, total_chunks, model_name)
+                logger.info(f"Parça {i}/{total_chunks} işleniyor...")
+                chunk_result = process_chunk_with_retry(chunk, i, total_chunks, model_name)
                 
                 res_dict = chunk_result.model_dump()
-                
-                # Kaçış karakterlerini temizleyerek ekle
                 cleaned_summary = clean_escaped_text(res_dict.get('ozet_markdown', ''))
                 if cleaned_summary:
                     combined_summaries.append(cleaned_summary)
@@ -130,14 +144,12 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
                     feedback_list.append(clean_escaped_text(fb))
 
                 if i < total_chunks:
-                    logger.info("Dakikalık token kotasını korumak için 6 saniye bekleniyor...")
-                    time.sleep(6)
+                    time.sleep(3)
 
             avg_score = round(total_score / total_chunks)
-            # Tüm geri bildirimleri temiz tek bir paragrafta birleştir
             consolidated_feedback = (
-                f"Döküman genelinde temel teorik kavramlar, istatistiksel modeller ve formüller "
-                f"yüksek kapsayıcılıkla analiz edilmiştir. (Bölüm analiz notları: {' '.join(feedback_list[:3])})"
+                f"Döküman genelinde teorik kavramlar analiz edilmiştir. "
+                f"Özet notlar: {' '.join(feedback_list[:3])}"
             )
 
             merged_score_dict = {
@@ -155,18 +167,13 @@ def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dos
             }
             result = GenerationResult.model_validate(merged_payload)
 
-        logger.info(f"İçerik başarıyla üretildi! Toplam Soru: {len(result.quiz)}, Flashcard: {len(result.flashcards)}, Skor: {result.ogreticilik_degerlendirmesi.skor}")
-
-        # Supabase veritabanına kayıt
         save_study_session(
             file_name=file_name,
             ai_score=result.ogreticilik_degerlendirmesi.skor,
             summary=result.ozet_markdown
         )
-        logger.info("Çalışma oturumu Supabase veritabanına kaydedildi.")
-
         return result
 
     except Exception as e:
-        logger.error(f"LLM içerik üretimi sırasında hata oluştu: {str(e)}")
+        logger.error(f"İşlem hatası: {str(e)}")
         raise e
