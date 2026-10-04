@@ -82,7 +82,7 @@ def process_chunk(chunk_text: str, chunk_index: int, total_chunks: int, model_na
 
 def generate_study_material(document_text: any, file_name: str = "Bilinmeyen Dosya", *args, **kwargs) -> GenerationResult:
     try:
-        model_name = 'llama-3.3-70b-versatile'
+        model_name = 'llama-3.1-8b-instant'
 
         text_content = (
             document_text.text
