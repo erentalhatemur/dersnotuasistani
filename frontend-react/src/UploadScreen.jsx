@@ -1,129 +1,184 @@
-import { useCallback, useRef, useState } from "react";
-
-const ACCEPTED = ".pdf,.docx,.pptx,.jpg,.jpeg,.png,.webp";
+import { useRef, useState } from "react";
 
 export default function UploadScreen({ onFileSelected }) {
-  const [dragActive, setDragActive] = useState(false);
-  const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleDrag = useCallback((e, active) => {
+  const handleDragOver = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    setDragActive(active);
-  }, []);
+    setIsDragging(true);
+  };
 
-  const handleDrop = useCallback(
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) onFileSelected(file);
-    },
-    [onFileSelected]
-  );
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      onFileSelected(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      onFileSelected(e.target.files[0]);
+    }
+  };
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "64px 24px" }}>
-      <span
-        style={{
-          display: "inline-block",
-          background: "var(--purple-soft)",
-          color: "#3C3489",
-          fontSize: 12,
-          fontWeight: 700,
-          padding: "6px 14px",
-          borderRadius: 100,
-          marginBottom: 16,
-        }}
-      >
-        ✦ ders notu asistanı
-      </span>
+    <div style={{ textAlign: "center", marginBottom: "28px" }}>
+      {/* Vurucu Rozet */}
+      <div style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        background: "rgba(168, 85, 247, 0.12)",
+        border: "1px solid rgba(168, 85, 247, 0.35)",
+        padding: "6px 16px",
+        borderRadius: "30px",
+        marginBottom: "22px",
+        boxShadow: "0 0 20px rgba(168, 85, 247, 0.15)"
+      }}>
+        <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#c084fc", boxShadow: "0 0 10px #c084fc" }} />
+        <span style={{ fontSize: "12px", fontWeight: 700, color: "#e879f9", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          AI Destekli Akademik Çalışma Alanı
+        </span>
+      </div>
 
-      <h1
-        style={{
-          fontSize: "clamp(28px, 5vw, 40px)",
-          fontWeight: 800,
-          margin: "0 0 12px",
-          lineHeight: 1.15,
-          letterSpacing: "-0.02em",
-        }}
-      >
-        Ders notların,{" "}
-        <span style={{ color: "var(--purple)" }}>3 dakikada</span> sınav
-        malzemesine dönüşsün.
+      {/* Büyük & Vurucu Başlık */}
+      <h1 style={{
+        fontSize: "2.75rem",
+        fontWeight: 800,
+        color: "#ffffff",
+        margin: "0 auto 16px auto",
+        lineHeight: 1.2,
+        letterSpacing: "-0.035em",
+        maxWidth: "640px"
+      }}>
+        Ders Notların,{" "}
+        <span style={{
+          background: "linear-gradient(135deg, #c084fc 0%, #f472b6 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent"
+        }}>
+          Dakikalar İçinde
+        </span>{" "}
+        Sınav Materyaline Dönüşsün.
       </h1>
 
-      <p
-        style={{
-          fontSize: 16,
-          color: "var(--ink-soft)",
-          maxWidth: 460,
-          lineHeight: 1.6,
-          fontWeight: 600,
-          margin: "0 0 40px",
-        }}
-      >
-        Yükle, otomatik özet, flashcard ve quiz üretilsin.
+      {/* Alt Açıklama */}
+      <p style={{
+        fontSize: "15px",
+        color: "#94a3b8",
+        margin: "0 auto 36px auto",
+        maxWidth: "540px",
+        lineHeight: 1.6
+      }}>
+        Dökümanını yükle; yapay zeka formülleri koruyarak özet çıkarsın, ezber kartları ve seviye tespit testleri hazırlasın.
       </p>
 
+      {/* Koyu Cam (Dark Glass) Yükleme Alanı - Beyaz zemin kaldırıldı */}
       <div
-        onDragOver={(e) => handleDrag(e, true)}
-        onDragEnter={(e) => handleDrag(e, true)}
-        onDragLeave={(e) => handleDrag(e, false)}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => fileInputRef.current?.click()}
         style={{
-          border: "3px solid var(--ink)",
-          borderRadius: 24,
-          padding: "48px 32px",
-          textAlign: "center",
-          background: dragActive ? "var(--yellow-soft)" : "#fff",
-          boxShadow: `6px 6px 0 var(--purple)`,
+          background: isDragging ? "rgba(168, 85, 247, 0.08)" : "rgba(255, 255, 255, 0.03)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: `2px dashed ${isDragging ? "#c084fc" : "rgba(255, 255, 255, 0.15)"}`,
+          borderRadius: "24px",
+          padding: "52px 30px",
           cursor: "pointer",
-          transition: "background 0.15s ease",
+          transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+          boxShadow: isDragging 
+            ? "0 20px 40px -10px rgba(168, 85, 247, 0.3)" 
+            : "0 10px 35px -10px rgba(0, 0, 0, 0.5)"
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "rgba(168, 85, 247, 0.5)";
+          e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+          e.currentTarget.style.transform = "translateY(-2px)";
+        }}
+        onMouseLeave={(e) => {
+          if (!isDragging) {
+            e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.15)";
+            e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+            e.currentTarget.style.transform = "none";
+          }
         }}
       >
-        <p style={{ fontSize: 19, fontWeight: 800, margin: "0 0 6px" }}>
-          Dosyanı buraya bırak
-        </p>
-        <p
-          style={{
-            fontSize: 13,
-            color: "var(--ink-soft)",
-            fontWeight: 600,
-            margin: "0 0 20px",
-          }}
-        >
-          PDF, DOCX, PPTX, fotoğraf — hepsi olur
-        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx,.pptx"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+
+        {/* Parıltılı İkon */}
+        <div style={{
+          width: "60px",
+          height: "60px",
+          borderRadius: "18px",
+          background: "linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(244, 114, 182, 0.2) 100%)",
+          border: "1px solid rgba(168, 85, 247, 0.4)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 18px auto",
+          fontSize: "26px",
+          boxShadow: "0 8px 20px -5px rgba(168, 85, 247, 0.3)"
+        }}>
+          📑
+        </div>
+
+        {/* Net ve Okunabilir Tipografi */}
+        <div style={{
+          fontSize: "1.2rem",
+          fontWeight: 700,
+          color: "#f8fafc",
+          marginBottom: "8px",
+          letterSpacing: "-0.01em"
+        }}>
+          Dosyanı buraya sürükleyip bırak
+        </div>
+
+        <div style={{
+          fontSize: "13.5px",
+          color: "#94a3b8",
+          marginBottom: "26px"
+        }}>
+          PDF, DOCX, PPTX dosyaları desteklenir
+        </div>
+
+        {/* Buton */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
-            inputRef.current?.click();
+            fileInputRef.current?.click();
           }}
           style={{
-            padding: "14px 32px",
-            background: "var(--ink)",
-            color: "#fff",
-            fontWeight: 800,
-            fontSize: 14,
+            background: "linear-gradient(135deg, #a855f7 0%, #ec4899 100%)",
+            color: "#ffffff",
+            padding: "12px 28px",
+            borderRadius: "12px",
             border: "none",
-            borderRadius: 100,
+            fontWeight: 700,
+            fontSize: "14px",
+            cursor: "pointer",
+            boxShadow: "0 8px 24px -4px rgba(236, 72, 153, 0.45)",
+            transition: "all 0.2s ease"
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.04)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
         >
-          Dosya seç
+          Dosya Seç
         </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onFileSelected(file);
-          }}
-        />
       </div>
     </div>
   );
