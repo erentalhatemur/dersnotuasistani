@@ -1,0 +1,139 @@
+import { useEffect, useState } from "react";
+
+export default function HistoryModal({ isOpen, onClose, onSelectSession }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchHistory();
+    }
+  }, [isOpen]);
+
+  const fetchHistory = async () => {
+    setLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "https://dersnotuasistani-backend.onrender.com";
+      const res = await fetch(`${apiUrl}/api/history`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setSessions(data.data || []);
+      }
+    } catch (err) {
+      console.error("Geçmiş yüklenirken hata:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      background: "rgba(0,0,0,0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 1000,
+      padding: "20px"
+    }}>
+      <div style={{
+        background: "#fff",
+        border: "3px solid var(--ink, #1e293b)",
+        borderRadius: "20px",
+        boxShadow: "6px 6px 0px var(--ink, #1e293b)",
+        width: "100%",
+        maxWidth: "500px",
+        maxHeight: "80vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden"
+      }}>
+        {/* Başlık Çubuğu */}
+        <div style={{
+          padding: "16px 20px",
+          borderBottom: "2px solid #e2e8f0",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          background: "#f8fafc"
+        }}>
+          <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 900 }}>📜 Çalışma Geçmişi</h3>
+          <button 
+            onClick={onClose}
+            style={{
+              background: "#ef4444",
+              color: "#fff",
+              border: "2px solid var(--ink, #1e293b)",
+              borderRadius: "8px",
+              padding: "4px 10px",
+              fontWeight: 800,
+              cursor: "pointer"
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Liste Alanı */}
+        <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "10px" }}>
+          {loading && <p style={{ textAlign: "center", fontSize: "14px", fontWeight: 700 }}>Yükleniyor...</p>}
+          
+          {!loading && sessions.length === 0 && (
+            <p style={{ textAlign: "center", fontSize: "14px", color: "#64748b" }}>Henüz kayıtlı bir çalışma bulunmuyor.</p>
+          )}
+
+          {!loading && sessions.map((item) => (
+            <div 
+              key={item.id}
+              onClick={() => {
+                onSelectSession(item);
+                onClose();
+              }}
+              style={{
+                border: "2px solid var(--ink, #1e293b)",
+                borderRadius: "12px",
+                padding: "12px",
+                cursor: "pointer",
+                background: "#fff",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                transition: "all 0.15s ease",
+                boxShadow: "2px 2px 0px var(--ink, #1e293b)"
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = "translate(-2px, -2px)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "none"}
+            >
+              <div style={{ overflow: "hidden", paddingRight: "10px" }}>
+                <div style={{ fontWeight: 800, fontSize: "14px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                  {item.file_name}
+                </div>
+                <div style={{ fontSize: "11px", color: "#64748b", marginTop: "3px" }}>
+                  {new Date(item.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+
+              <div style={{
+                background: "#fef08a",
+                border: "1.5px solid var(--ink, #1e293b)",
+                borderRadius: "8px",
+                padding: "4px 8px",
+                fontWeight: 900,
+                fontSize: "12px",
+                flexShrink: 0
+              }}>
+                {item.ai_score} Puan
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

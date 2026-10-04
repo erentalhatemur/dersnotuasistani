@@ -25,3 +25,10 @@ app.include_router(documents.router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+from services.database import get_study_sessions
+
+@app.get("/api/history")
+async def get_history():
+    """Gecmis calisma oturumlarini listeler."""
+    sessions = get_study_sessions(limit=15)
+    return {"status": "success", "data": sessions}
